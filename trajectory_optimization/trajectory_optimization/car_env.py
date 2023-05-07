@@ -19,7 +19,7 @@ WINDOW_H = 800
 # TODO compute scale based on track len
 SCALE = 100  # meters to px, 10 m = 1000 px
 
-FPS = 50  # Frames per second
+FPS = 20  # Frames per second
 
 
 class CarRacing(gym.Env):
