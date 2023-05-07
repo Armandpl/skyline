@@ -1,0 +1,14 @@
+m: 2.645
+L_f: 0.15
+L_r: 0.17
+load_f: 12.1000
+load_r: 13.8178
+C_x: 103.9400
+C_alpha: 56.4000
+I_z: 0.0558
+tw: 0.165
+wheel_dia: 0.066
+wheel_w: 0.025
+max_steer: 20 # max steer in deg, measured on the car with a level
+max_speed: 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
+body_w: 0.19 # car width in meters
