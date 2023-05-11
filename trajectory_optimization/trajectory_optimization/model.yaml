@@ -1,12 +1,13 @@
-m: 2.645
-L_f: 0.15
-L_r: 0.17
-load_f: 12.1000
-load_r: 13.8178
-C_x: 103.9400
-C_alpha: 56.4000
-I_z: 0.0558
-tw: 0.165
+m: 1.873
+L_f: 0.14
+L_r: 0.125
+load_f: 8.7 # changes when braking/accelerating, can we/should we model this?
+load_r: 9.67
+C_x: 103.9400 # still need to figure this one out
+C_alpha: 56.4000 # and this one
+I_z: 0.0558 # I = 0.5 * m * r^2 = 0.5 * 0.0283 * 0.033^2 = 0.00001541, basically zero
+# having a low I_z makes it difficult to integrate the accel quickly, leave the old value?
+# tw: 0.165 idk what that is?
 wheel_dia: 0.066
 wheel_w: 0.025
 max_steer: 20 # max steer in deg, measured on the car with a level
