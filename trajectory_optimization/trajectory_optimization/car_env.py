@@ -7,6 +7,7 @@ import pygame
 from gymnasium import spaces
 from gymnasium.error import DependencyNotInstalled, InvalidAction
 from pygame import gfxdraw
+from shapely.geometry import Point
 
 from trajectory_optimization.bicycle_model import Car
 from trajectory_optimization.track import Track
@@ -117,10 +118,13 @@ class CarRacing(gym.Env):
         terminated = False
         truncated = False
 
-        for x, y in self.car.vertices:
-            if not self.track.is_inside(x, y):
-                terminated = True
-                break
+        # for x, y in self.car.vertices:
+        # if not self.track.is_inside(x, y):
+        # terminated = True
+        # break
+
+        if not self.track.is_inside(self.car.pos_x, self.car.pos_y):
+            terminated = True
 
         lidar = self.track.get_distance_to_side(
             self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
@@ -130,7 +134,16 @@ class CarRacing(gym.Env):
         if self.render_mode == "human":
             self.render(lidar)
 
-        return observation, step_reward, terminated, truncated, {}
+        car_pos = Point(self.car.pos_x, self.car.pos_y)
+        distance_to_centerline = self.track.center.distance(car_pos)
+        road_side = self.track.center_polygon.contains(
+            car_pos
+        )  # to know which side of the road we're driving on
+        distance_to_centerline = distance_to_centerline if road_side else -distance_to_centerline
+
+        info = {"distance_to_centerline": distance_to_centerline}
+
+        return observation, step_reward, terminated, truncated, info
 
     def reset(
         self,
@@ -141,8 +154,17 @@ class CarRacing(gym.Env):
         super().reset(seed=seed)
         # if self.domain_randomize:
         #     pass
+        x_min, y_min, x_max, y_max = self.track.outer.bounds
 
-        self.car = Car(initial_state=np.array([1.0, 0.5, 1e-9, 1e-9, 1e-9, 1e-9]))
+        while True:
+            x = np.random.uniform(x_min, x_max)
+            y = np.random.uniform(y_min, y_max)
+            if self.track.is_inside(x, y):
+                break
+
+        yaw = np.random.uniform(-np.pi, np.pi)
+
+        self.car = Car(initial_state=np.array([x, y, yaw, 1e-9, 1e-9, 1e-9]))
 
         return self.step(np.array([0.0, 0.0]))[0], {}
 

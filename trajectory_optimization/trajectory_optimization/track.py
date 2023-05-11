@@ -16,6 +16,9 @@ class Track:
         # inner < center < outer
         self.inner, self.center, self.outer = lines
         self.asphalt = geom.Polygon(shell=self.outer, holes=[self.inner])
+        self.center_polygon = geom.Polygon(
+            shell=self.center
+        )  # to know which side of the road we're on
 
         # TODO work out if the track is CCW or CW, reverse init state of the car based on that?
         # https://shapely.readthedocs.io/en/stable/reference/shapely.is_ccw.html
