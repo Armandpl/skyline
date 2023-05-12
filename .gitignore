@@ -2,6 +2,7 @@
 # Ignore everything under any data directory in the whole project
 **/data/**
 **/notebooks/**
+**/artifacts/**
 # Un-ignore any .dxf file under any data directory in the whole project
 !**/data/**/*.dxf
 **/notebooks/*.ipynb
