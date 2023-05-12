@@ -79,6 +79,7 @@ class CarRacing(gym.Env):
         self,
         render_mode: Optional[str] = None,
         nb_rays: int = 10,
+        random_init: bool = True,
         # TODO
         # track id
         # car params?
@@ -87,6 +88,8 @@ class CarRacing(gym.Env):
         # clockwise, counter clockwise?
     ):
         # TODO lap time when lap is completed
+
+        self.random_init = random_init
 
         self.action_space = spaces.Box(
             np.array([-1, -1]).astype(np.float32),
@@ -152,19 +155,21 @@ class CarRacing(gym.Env):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
-        # if self.domain_randomize:
-        #     pass
-        x_min, y_min, x_max, y_max = self.track.outer.bounds
+        if self.random_init:
+            x_min, y_min, x_max, y_max = self.track.outer.bounds
 
-        while True:
-            x = np.random.uniform(x_min, x_max)
-            y = np.random.uniform(y_min, y_max)
-            if self.track.is_inside(x, y):
-                break
+            while True:
+                x = np.random.uniform(x_min, x_max)
+                y = np.random.uniform(y_min, y_max)
+                if self.track.is_inside(x, y):
+                    break
 
-        yaw = np.random.uniform(-np.pi, np.pi)
+            yaw = np.random.uniform(-np.pi, np.pi)
+            init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
+        else:
+            init_state = np.array([1.0, 0.5, 1e-9, 1e-9, 1e-9, 1e-9])
 
-        self.car = Car(initial_state=np.array([x, y, yaw, 1e-9, 1e-9, 1e-9]))
+        self.car = Car(initial_state=init_state)
 
         return self.step(np.array([0.0, 0.0]))[0], {}
 
