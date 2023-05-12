@@ -27,10 +27,11 @@ if __name__ == "__main__":
 
             distance = info["distance_to_centerline"]
             action = pid(distance)
-            a[0] = action + action_noise()
-            a[0] = np.clip(a[0], -1, 1)
+            action = action + action_noise()
+            action = np.clip(action, -1, 1)
+            a[0] = action[0]
             car = env.unwrapped.car
-            states.append([car.pos_x, car.pos_y, car.yaw, action])
+            states.append([car.pos_x, car.pos_y, car.yaw, action[0]])
             # print(f"distance: {distance}\naction: {action}\n")
 
             if terminated or truncated:
