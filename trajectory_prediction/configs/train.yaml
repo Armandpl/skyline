@@ -7,7 +7,7 @@ val_pct: 0.02
 
 # train
 lr: 1e-3
-batch_size: 64
+batch_size: 8
 gradient_accumulation_steps: 1
 epochs: 1
 val_freq: 20 # number of time we eval per epoch
@@ -21,7 +21,7 @@ num_workers: 8
 pin_memory: True
 
 # model
-model_artifact_name: "model:v1"
+model_artifact_name: null
 
 # reproducibility
 seed: 1234

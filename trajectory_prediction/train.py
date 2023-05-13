@@ -28,9 +28,9 @@ def main(cfg: DictConfig):
         project=cfg.wandb.project, save_code=True, job_type=cfg.wandb.job_type, config=config
     )
 
-    accelerator = Accelerator(
-        gradient_accumulation_steps=cfg.gradient_accumulation_steps, log_with="wandb"
-    )
+    # accelerator = Accelerator(
+    #     gradient_accumulation_steps=cfg.gradient_accumulation_steps, log_with="wandb"
+    # )
 
     seed(cfg.seed, cfg.cudnn_deterministic)
 
@@ -69,8 +69,8 @@ def main(cfg: DictConfig):
     criterion = torch.nn.MSELoss()
     train_metrics = DictAccumulator()
 
-    train_dl, val_dl, model, optimizer = accelerator.prepare(train_dl, val_dl, model, optimizer)
-    model.to(accelerator.device)
+    #train_dl, val_dl, model, optimizer = accelerator.prepare(train_dl, val_dl, model, optimizer)
+    model.to("cpu")
 
     # defined in context to avoid passing everything
     def evaluate(dl, step_name, sanity_check=False):
@@ -110,21 +110,21 @@ def main(cfg: DictConfig):
             logging.info(f"Epoch {epoch}")
 
             for batch_idx, batch in enumerate(tqdm(train_dl)):
-                with accelerator.accumulate(model):
-                    loss, _, _ = step(batch, model, criterion, train_metrics)
-                    accelerator.backward(loss)
+                #with accelerator.accumulate(model):
+                loss, _, _ = step(batch, model, criterion, train_metrics)
+                model.backward(loss)
 
-                    optimizer.step()
-                    optimizer.zero_grad()
+                optimizer.step()
+                optimizer.zero_grad()
 
-                    if batch_idx != 0 or epoch != 0:
-                        if batch_idx % cfg.gradient_accumulation_steps == 0:
-                            wandb.log(train_metrics.compute())
+                if batch_idx != 0 or epoch != 0:
+                    if batch_idx % cfg.gradient_accumulation_steps == 0:
+                        wandb.log(train_metrics.compute())
 
-                        if cfg.overfit_batches is None:
-                            if batch_idx % (len(train_dl) // cfg.val_freq) == 0:
-                                logging.info("Validating")
-                                evaluate(val_dl, "val")
+                    if cfg.overfit_batches is None:
+                        if batch_idx % (len(train_dl) // cfg.val_freq) == 0:
+                            logging.info("Validating")
+                            evaluate(val_dl, "val")
 
     except KeyboardInterrupt:
         logging.info("Caught KeyboardInterrupt")
