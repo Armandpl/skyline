@@ -2,6 +2,8 @@ import logging
 
 import hydra
 import numpy as np
+import PIL.Image
+import PIL.ImageDraw
 import torch
 import torchvision
 import wandb
@@ -70,22 +72,49 @@ def main(cfg: DictConfig):
     train_metrics = DictAccumulator()
 
     #train_dl, val_dl, model, optimizer = accelerator.prepare(train_dl, val_dl, model, optimizer)
-    model.to("cpu")
+    model.to("cuda:0")
 
-    # defined in context to avoid passing everything
     def evaluate(dl, step_name, sanity_check=False):
         """step to know where to log."""
         losses = []
 
         model.eval()
         with torch.no_grad():
-            for idx, batch in enumerate(dl):
+            for idx, (images, targets) in enumerate(dl):
                 # forward
-                loss, y, y_hat = step(batch, model, criterion)
+                loss, y, y_hat = step((images, targets), model, criterion)
                 losses.append(loss)
 
                 # at least two batches
                 if sanity_check and idx > 0:
+                    break
+                
+                for image, angle_prediction, angle_gt in zip(images, y_hat, y):
+                    # Convert the image tensor to a NumPy array
+                    image_array = image.numpy().transpose((1, 2, 0))
+                    
+                    #denormalize compared to imagenet
+                    image_array = image_array * np.array([0.229, 0.224, 0.225]) + np.array(
+                        [0.485, 0.456, 0.406]
+                    )
+
+                    # Convert the NumPy array to a PIL Image
+                    pil_image = PIL.Image.fromarray((image_array * 255).astype(np.uint8))
+
+                    # Draw the predicted point on the image
+                    draw = PIL.ImageDraw.Draw(pil_image)
+                    x = (angle_prediction + 1)/2 * 224  # Scale from -1.0-1.0 to image size
+                    x = 224 - x  # Invert x-axis
+                    y = 112  # Center of the y-axis
+                    draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill="red")
+
+                    x = (angle_gt + 1)/2 * 224  # Scale from -1.0-1.0 to image size
+                    x = 224 - x  # Invert x-axis
+                    draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill="blue")
+
+                    # Log the image with the prediction to W&B
+                    logged_image = wandb.Image(pil_image, caption=f"Prediction: {angle_prediction}")
+                    wandb.log({f"{step_name}/image": logged_image})
                     break
 
         mean_loss = torch.tensor(losses).mean()
@@ -98,6 +127,7 @@ def main(cfg: DictConfig):
                     # f"{step_name}/percent_err_vs_all_zeros": percent_err_vs_all_zeros,
                 }
             )
+
 
     # run validation and test before training
     # to make sure everything is working
@@ -112,19 +142,19 @@ def main(cfg: DictConfig):
             for batch_idx, batch in enumerate(tqdm(train_dl)):
                 #with accelerator.accumulate(model):
                 loss, _, _ = step(batch, model, criterion, train_metrics)
-                model.backward(loss)
+                loss.backward()
 
                 optimizer.step()
                 optimizer.zero_grad()
 
                 if batch_idx != 0 or epoch != 0:
                     if batch_idx % cfg.gradient_accumulation_steps == 0:
-                        wandb.log(train_metrics.compute())
+                        wandb.log({"train/loss": loss})
 
-                    if cfg.overfit_batches is None:
-                        if batch_idx % (len(train_dl) // cfg.val_freq) == 0:
-                            logging.info("Validating")
-                            evaluate(val_dl, "val")
+                if cfg.overfit_batches is None:
+                    if batch_idx % (len(train_dl) // cfg.val_freq) == 0:
+                        logging.info("Validating")
+                        evaluate(val_dl, "val")
 
     except KeyboardInterrupt:
         logging.info("Caught KeyboardInterrupt")
@@ -138,9 +168,12 @@ def main(cfg: DictConfig):
 def step(batch, model, criterion, metrics=None):
     # get data
     x, y = batch
+    x = x.to("cuda:0")
+    y = y.to("cuda:0")
 
     # forward
     y_hat = model(x)
+    y_hat = torch.tanh(y_hat)
     loss = criterion(y_hat, y)
 
     if metrics is not None:
