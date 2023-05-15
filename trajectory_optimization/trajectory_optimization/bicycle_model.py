@@ -19,7 +19,7 @@ class Car:
 
         # init state can't be strictly zeros else computation errors
         self.initial_state = initial_state if initial_state is not None else np.array([1e-6] * 6)
-        self.mu_s = mu_s # TODO load that from yaml? what is it?
+        self.mu_s = mu_s  # TODO load that from yaml? what is it?
         self.mu_k = mu_k
         self.load_parameters()
 
@@ -36,7 +36,7 @@ class Car:
 
         self.max_steer = np.deg2rad(params["max_steer"])
         self.max_speed = params["max_speed"]
-        self.min_speed = 0.85 # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
+        self.min_speed = 0.85  # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
         # TODO maybe there is a cleaner way to fix this? understand why integrating can be slow sometimes? division by zero or smth?
         self.width = params["body_w"]
         self.length = self.model.L
@@ -98,6 +98,10 @@ class Car:
     @property
     def v_y(self):
         return self.state[4]
+
+    @property
+    def speed(self):
+        return np.sqrt(np.power(self.v_x, 2) + np.power(self.v_y, 2))
 
     @property
     def yaw_rate(self):

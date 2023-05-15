@@ -98,8 +98,8 @@ class CarRacing(gym.Env):
 
         # TODO speed (x, y?), edge distance measurements
         self.observation_space = spaces.Box(
-            np.array([-np.inf] * nb_rays).astype(np.float32),
-            np.array([np.inf] * nb_rays).astype(np.float32),
+            np.array([-np.inf] * (nb_rays + 1)).astype(np.float32),
+            np.array([np.inf] * (nb_rays + 1)).astype(np.float32),
         )
 
         self.track = Track()
@@ -108,6 +108,14 @@ class CarRacing(gym.Env):
         self.render_mode = render_mode
         self.screen = None
         self.clock = None
+
+    def car_inside(self):
+        """iterate over car vertices and check if they are inside the track."""
+        for x, y in self.car.vertices:
+            if not self.track.is_inside(x, y):
+                return False
+
+        return True
 
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
@@ -121,21 +129,17 @@ class CarRacing(gym.Env):
         terminated = False
         truncated = False
 
-        # for x, y in self.car.vertices:
-        # if not self.track.is_inside(x, y):
-        # terminated = True
-        # break
-
-        if not self.track.is_inside(self.car.pos_x, self.car.pos_y):
+        if not self.car_inside():
             terminated = True
 
-        lidar = self.track.get_distance_to_side(
+        self.lidar = self.track.get_distance_to_side(
             self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
         )
-        observation = np.array(lidar.values())
+        observation = np.array([self.car.speed, *self.lidar.values()])
 
-        if self.render_mode == "human":
-            self.render(lidar)
+        # TODO call it manually?
+        # if self.render_mode == "human":
+        #     self.render(lidar)
 
         car_pos = Point(self.car.pos_x, self.car.pos_y)
         distance_to_centerline = self.track.center.distance(car_pos)
@@ -161,19 +165,20 @@ class CarRacing(gym.Env):
             while True:
                 x = np.random.uniform(x_min, x_max)
                 y = np.random.uniform(y_min, y_max)
-                if self.track.is_inside(x, y):
-                    break
+                yaw = np.random.uniform(-np.pi, np.pi)
+                init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
 
-            yaw = np.random.uniform(-np.pi, np.pi)
-            init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
+                self.car = Car(initial_state=init_state)
+
+                if self.car_inside():
+                    break
         else:
             init_state = np.array([1.0, 0.5, 1e-9, 1e-9, 1e-9, 1e-9])
-
-        self.car = Car(initial_state=init_state)
+            self.car = Car(initial_state=init_state)
 
         return self.step(np.array([0.0, 0.0]))[0], {}
 
-    def render(self, lidar: dict):
+    def render(self):
         if self.screen is None:
             pygame.init()
             pygame.display.init()
@@ -200,7 +205,7 @@ class CarRacing(gym.Env):
         pos_y = self.car.pos_y * SCALE
 
         # render the lidar measurements as lines from the car position
-        for angle, distance in lidar.items():
+        for angle, distance in self.lidar.items():
             # Calculate the end point of the line based on car's position, orientation, and lidar measurements
             end_x = self.car.pos_x * SCALE + distance * SCALE * np.cos(self.car.yaw + angle)
             end_y = self.car.pos_y * SCALE + distance * SCALE * np.sin(self.car.yaw + angle)
@@ -260,12 +265,14 @@ if __name__ == "__main__":
     quit = False
     while not quit:
         env.reset()
+        env.render()
         total_reward = 0.0
         steps = 0
         restart = False
         while True:
             register_input()
             s, r, terminated, truncated, info = env.step(a)
+            env.render()
             total_reward += r
             if steps % 200 == 0 or terminated or truncated:
                 print("\naction " + str([f"{x:+0.2f}" for x in a]))
