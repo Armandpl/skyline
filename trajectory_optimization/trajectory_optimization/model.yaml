@@ -1,3 +1,4 @@
+# bicycle model params
 m: 1.873
 L_f: 0.14
 L_r: 0.125
@@ -10,6 +11,10 @@ I_z: 0.0558 # I = 0.5 * m * r^2 = 0.5 * 0.0283 * 0.033^2 = 0.00001541, basically
 # tw: 0.165 idk what that is?
 wheel_dia: 0.066
 wheel_w: 0.025
+
+# additionnal params
 max_steer: 20 # max steer in deg, measured on the car with a level
 max_speed: 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
 body_w: 0.19 # car width in meters
+max_steering_rate: 0 # rad/s ?
+max_accel: 0 #
