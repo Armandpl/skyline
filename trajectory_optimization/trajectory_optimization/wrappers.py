@@ -1,8 +1,3 @@
-import logging
-import time
-from pathlib import Path
-from typing import Union
-
 import gymnasium as gym
 import numpy as np
 from gymnasium.spaces import Box
@@ -33,8 +28,6 @@ class HistoryWrapper(gym.Wrapper):
         return [np.zeros_like(self.step_low) for _ in range(self.steps)]
 
     def _continuity_cost(self, obs):
-        # TODO compute continuity cost for all steps and average?
-        # and compare smoothness between training run, and viz smoothness over time
         action = obs[-1][-1]
         last_action = obs[-2][-1]
         continuity_cost = np.power((action - last_action), 2).sum()
