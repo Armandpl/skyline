@@ -1,19 +1,19 @@
-const byte A = D8;
-const byte B = D9;
-const byte C = D10;
+const byte A = 8;
+const byte B = 9;
+const byte C = 10;
 
 const float diam = 66;
 const float wheel_perimeter = 2 * 3.1416 * 66/1000/2;
-const float tick_per_motor_rotation = 6;
+const float tick_per_motor_rotation = 2;
 const float motor_rotations_per_wheel_turn = 5.65;
-const float tick_per_wheel_rotation = ticke_per_motor_rotation*motor_rotations_per_wheel_turn;
+const float tick_per_wheel_rotation = tick_per_motor_rotation*motor_rotations_per_wheel_turn;
 const float freq = 40;
 const float t = 1/freq;
 
 volatile int counter = 0;
 
 void setup() {
-  attachInterrupt(digitalPinToInterrupt(A), incrementCounter, RISING);
+  attachInterrupt(digitalPinToInterrupt(B), incrementCounter, RISING);
   attachInterrupt(digitalPinToInterrupt(B), incrementCounter, RISING);
   attachInterrupt(digitalPinToInterrupt(C), incrementCounter, RISING);
 
@@ -26,10 +26,9 @@ void loop() {
   float wheel_rotations = counter / tick_per_wheel_rotation;
   float metters = wheel_rotations * wheel_perimeter;
   float metters_per_sec = metters / t;
-  // Serial.println(metters_per_sec);
-  Serial.println(counter);
+  Serial.println(metters_per_sec);
 
-  //counter = 0;
+  counter = 0;
 }
 
 void incrementCounter() {
