@@ -25,7 +25,7 @@ class Car:
 
     def load_parameters(self):
         # TODO use hydra instead of loading and indexing the yaml
-        with open("model.yaml") as f:
+        with open("../trajectory_optimization/model.yaml") as f:
             params = yaml.safe_load(f)
         if self.model_type == "linear":
             self.model = LinearTireModel(params, self.mu_s, self.mu_k)
@@ -45,24 +45,25 @@ class Car:
     def step(self, U, dt):
         """U is the action coming from the gym env, U[0] is delta, U[1] is speed U[0] is between -1
         and 1 U[1] is between 0 and 1."""
+        # TODO maybe don't clip and rescale since sb3 already does it?
         U = np.copy(U)
-        U[0] = U[0] * self.max_steer
-        U[1] = U[1] * (self.max_speed - self.min_speed) + self.min_speed
+        U[0] = np.clip(U[0], -1, 1) * self.max_steer
+        U[1] = np.clip(U[1], 0, 1) * (self.max_speed - self.min_speed) + self.min_speed
 
         self.state = self.model.state_transition(self.state, U, dt)
 
     @property
     def vertices(self):
         # Calculate the car's rectangle vertices based on its position and orientation
-        rect_width, rect_height = self.length, self.width
-        half_width, half_height = rect_width / 2, rect_height / 2
+        half_width = self.width / 2
+        L_f, L_r = self.model.L_f, self.model.L_r
 
         # Define the car's rectangle vertices in the local coordinate system
         local_vertices = [
-            (-half_width, -half_height),
-            (half_width, -half_height),
-            (half_width, half_height),
-            (-half_width, half_height),
+            (-L_r, -half_width),
+            (-L_r, half_width),
+            (L_f, half_width),
+            (L_f, -half_width),
         ]
 
         # Rotate and translate the vertices to the global coordinate system
