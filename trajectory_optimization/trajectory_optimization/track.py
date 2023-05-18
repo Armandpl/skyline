@@ -1,3 +1,5 @@
+from typing import List
+
 import ezdxf
 import numpy as np
 import shapely.geometry as geom
@@ -10,7 +12,14 @@ class Track:
     def _parse_track(self, filepath):
         doc = ezdxf.readfile(filepath)
         msp = doc.modelspace()
-        lines = sort_shapes(list(msp))
+
+        lines = []
+        # each track line is a lwpolyline (https://ezdxf.readthedocs.io/en/stable/tutorials/lwpolyline.html)
+        for lwpolyline in list(msp):
+            # convert from exdxf entity to shapely linear ring
+            lines.append(convert_closed_lwpolyline(lwpolyline))
+            # TODO dxf is a bit finicky, maybe save tracks as np.arrays, might be more robust in time
+
         lines.sort(key=lambda x: x.length)
 
         # inner < center < outer
@@ -18,11 +27,7 @@ class Track:
         self.asphalt = geom.Polygon(shell=self.outer, holes=[self.inner])
         self.center_polygon = geom.Polygon(
             shell=self.center
-        )  # to know which side of the road we're on
-
-        # TODO work out if the track is CCW or CW, reverse init state of the car based on that?
-        # https://shapely.readthedocs.io/en/stable/reference/shapely.is_ccw.html
-        # or maybe reverse the linear ring?
+        )  # to know which side of the road we're on, # TODO delete now that we don't need pid anymore?
 
     def is_inside(self, x, y):
         """given x, y coords, check if they are inside the track (between inner and outer)"""
@@ -59,90 +64,128 @@ class Track:
         return distances
 
 
-def discretize_arc(center, radius, start_angle, end_angle, num_segments=1000):
-    # https://stackoverflow.com/questions/30762329/how-to-create-polygons-with-arcs-in-shapely-or-a-better-library
-    centerx, centery = center
+def convert_closed_lwpolyline(
+    polyline: ezdxf.entities.LWPolyline, degrees_per_segment: float = 0.5
+) -> geom.LinearRing:
+    """lwpolyline is a lightweight polyline (cf POLYLINE) only accept closed polylines, we only
+    deal with closed racetracks modified from: https://github.com/aegis1980/cad-to-
+    shapely/blob/master/cad_to_shapely/dxf.py."""
+    assert polyline.closed, "polyline is not closed"
 
-    # The coordinates of the arc
-    theta = np.radians(np.linspace(start_angle, end_angle, num_segments))
-    x = centerx + radius * np.cos(theta)
-    y = centery + radius * np.sin(theta)
+    xy = []
+
+    points = polyline.get_points()
+
+    for i, point in enumerate(points):
+        x, y, _, _, b = point
+        xy.append([x, y])
+
+        if b != 0:  # if bulge
+            # if next point is the end, next point is the start bc closed
+            if i + 1 == len(points):
+                next_point = points[0]
+            else:
+                next_point = points[i + 1]
+
+            p1 = [x, y]
+            p2 = [next_point[0], next_point[1]]
+
+            pts = arc_points_from_bulge(p1, p2, b, degrees_per_segment)
+
+            # exclude start and end points
+            # start point was already added above
+            # last point is next point, will be added when dealing with the next point
+            pts = pts[1:-1]
+
+            xy.extend(pts)
+
+    return geom.LinearRing(xy)
+
+
+def arc_points(
+    start_angle: float,
+    end_angle: float,
+    radius: float,
+    center: List[float],
+    degrees_per_segment: float,
+) -> list:
+    """Coordinates of an arcs (for approximation as a polyline)
+
+    Args:
+        start_angle (float): arc start point relative to centre, in radians
+        end_angle (float): arc end point relative to centre, in radians
+        radius (float): [description]
+        center (List[float]): arc centre as [x,y]
+        degrees_per_segment (float): [description]
+
+    Returns:
+        list: 2D list of points as [x,y]
+
+    from https://github.com/aegis1980/cad-to-shapely/blob/master/cad_to_shapely/utils.py
+    """
+
+    n = abs(int((end_angle - start_angle) / np.radians(degrees_per_segment)))  # number of segments
+    theta = np.linspace(start_angle, end_angle, n)
+
+    x = center[0] + radius * np.cos(theta)
+    y = center[1] + radius * np.sin(theta)
 
     return np.column_stack([x, y])
 
 
-def dxf_arc_to_points(dxf_entity):
-    d = dxf_entity.dxf
-    x = d.center.x
-    y = d.center.y
-    return discretize_arc(
-        center=(x, y),
-        radius=d.radius,
-        start_angle=d.start_angle,
-        end_angle=d.end_angle,
-    )
+def distance(p1: List[float], p2: List[float]) -> float:
+    """from https://github.com/aegis1980/cad-to-shapely/blob/master/cad_to_shapely/utils.py."""
+    return np.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
 
 
-def dxf_line_to_points(dxf_entity):
-    start = dxf_entity.dxf.start
-    end = dxf_entity.dxf.end
-    return np.array([[start.x, start.y], [end.x, end.y]])
+def arc_points_from_bulge(p1: List[float], p2: List[float], b: float, degrees_per_segment: float):
+    """http://darrenirvine.blogspot.com/2015/08/polylines-radius-bulge-turnaround.html.
 
+    Args:
+        p1 (List[float]): [description]
+        p2 (List[float]): [description]
+        b (float): bulge of the arc
+        degrees_per_segment (float): [description]
 
-def dxf_to_points(dxf_entity):
-    if isinstance(dxf_entity, ezdxf.entities.Line):
-        return dxf_line_to_points(dxf_entity)
-    elif isinstance(dxf_entity, ezdxf.entities.Arc):
-        return dxf_arc_to_points(dxf_entity)
+    Returns:
+        [type]: point on arc
 
+    from: https://github.com/aegis1980/cad-to-shapely/blob/master/cad_to_shapely/utils.py
+    """
 
-def sort_shapes(elements):
-    """takes in a list of ezdxf lines and arcs seperate out the inner, center, outer track lines
-    return shapely linearings."""
-    shapes = []
-    current_shape = None
+    theta = 4 * np.arctan(b)
+    u = distance(p1, p2)
 
-    def get_start(dxf_entity):
-        if isinstance(dxf_entity, ezdxf.entities.Arc):
-            return dxf_entity.start_point
-        if isinstance(dxf_entity, ezdxf.entities.Line):
-            return dxf_entity.dxf.start
+    r = u * ((b**2) + 1) / (4 * b)
 
-    def get_end(dxf_entity):
-        if isinstance(dxf_entity, ezdxf.entities.Arc):
-            return dxf_entity.end_point
-        if isinstance(dxf_entity, ezdxf.entities.Line):
-            return dxf_entity.dxf.end
+    try:
+        a = np.sqrt(r**2 - (u * u / 4))
+    except ValueError:
+        a = 0
 
-    def find_next(last_point):
-        for i, element in enumerate(elements):
-            # get both end of the line/arc
-            start = get_start(element)
-            end = get_end(element)
-            start = np.array([start.x, start.y])
-            end = np.array([end.x, end.y])
+    dx = (p2[0] - p1[0]) / u
+    dy = (p2[1] - p1[1]) / u
 
-            if np.isclose(start, last_point, atol=1e-1).all():
-                return (i, dxf_to_points(element))
-            elif np.isclose(end, last_point, atol=1e-1).all():  # reversed
-                points = dxf_to_points(element)
-                return (i, np.flip(points, axis=0))
+    A = np.array(p1)
+    B = np.array(p2)
+    # normal direction
+    N = np.array([dy, -dx])
 
-        print("can't find next, impossible bc closed shapes")
-        raise RuntimeError
+    # if bulge is negative arc is clockwise
+    # otherwise counter-clockwise
+    s = b / abs(b)  # sigma = signum(b)
 
-    while elements:  # while we havent processed all elements
-        if current_shape is None:  # if we haven't started processing a shape
-            # take a random element, convert to points, put it in the shape
-            current_shape = dxf_to_points(elements.pop(0))
-        else:  # if we started
-            idx, next = find_next(current_shape[-1])
-            current_shape = np.concatenate([current_shape, next], axis=0)
-            del elements[idx]
+    # centre, as a np.array 2d point
 
-            # check if the shape is closed
-            if np.isclose(current_shape[0], current_shape[-1], atol=1e-1).all():
-                shapes.append(geom.LinearRing(current_shape))
-                current_shape = None
+    if abs(theta) <= np.pi:
+        C = ((A + B) / 2) - s * a * N
+    else:
+        C = ((A + B) / 2) + s * a * N
 
-    return shapes
+    start_angle = np.arctan2(p1[1] - C[1], p1[0] - C[0])
+    if b < 0:
+        start_angle += np.pi
+
+    end_angle = start_angle + theta
+
+    return arc_points(start_angle, end_angle, r, C, degrees_per_segment)
