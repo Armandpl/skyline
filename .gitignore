@@ -1,11 +1,16 @@
+# ignore other files in notebook dir
+**/notebooks/**
+!**/notebooks/*.ipynb
+
+# wandb stuff
+**/artifacts/**
+**/runs/**
 
 # Ignore everything under any data directory in the whole project
 **/data/**
-**/notebooks/**
-**/artifacts/**
 # Un-ignore any .dxf file under any data directory in the whole project
 !**/data/**/*.dxf
-**/notebooks/*.ipynb
+!**/notebooks/*.ipynb
 
 # wandb
 **/wandb/**
