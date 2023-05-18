@@ -17,9 +17,6 @@ VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
 
-# TODO compute scale based on track len
-SCALE = 100  # meters to px, 10 m = 1000 px
-
 FPS = 40  # Frames per second
 
 
@@ -85,8 +82,7 @@ class CarRacing(gym.Env):
         # track id
         # car params?
         # randomize car param? randomize init state? randomize track
-        #   track and init state make sense, car don't?
-        # clockwise, counter clockwise?
+        # track and init state make sense, car don't?
     ):
         # TODO lap time when lap is completed
 
@@ -193,12 +189,18 @@ class CarRacing(gym.Env):
 
         self.total_progress = 0
 
+        track_x_min, track_y_min, track_x_max, track_y_max = self.track.outer.bounds
+        w_scale = WINDOW_W / track_x_max  # assume track is at origin, if not it'll be tiny
+        h_scale = WINDOW_H / track_y_max
+
+        self.render_scale = w_scale if w_scale <= h_scale else h_scale
+
         if self.random_init:
-            x_min, y_min, x_max, y_max = self.track.outer.bounds
+            # x_min, y_min, x_max, y_max = self.track.outer.bounds
 
             while True:
-                x = np.random.uniform(x_min, x_max)
-                y = np.random.uniform(y_min, y_max)
+                x = np.random.uniform(track_x_min, track_x_max)
+                y = np.random.uniform(track_y_min, track_y_max)
                 yaw = np.random.uniform(-np.pi, np.pi)
                 init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
 
@@ -226,23 +228,29 @@ class CarRacing(gym.Env):
         # render the track
         for line in [self.track.inner, self.track.outer]:
             # Transform track points to screen points and scale
-            points = [(SCALE * p[0], SCALE * p[1]) for p in line.coords]
+            points = [(self.render_scale * p[0], self.render_scale * p[1]) for p in line.coords]
 
             # Draw lines with pygame
             pygame.draw.lines(self.surf, (255, 255, 255), False, points, 2)
 
         global_vertices = self.car.vertices
-        global_vertices = [(x * SCALE, y * SCALE) for x, y in global_vertices]
+        global_vertices = [
+            (x * self.render_scale, y * self.render_scale) for x, y in global_vertices
+        ]
 
         # scale car position
-        pos_x = self.car.pos_x * SCALE
-        pos_y = self.car.pos_y * SCALE
+        pos_x = self.car.pos_x * self.render_scale
+        pos_y = self.car.pos_y * self.render_scale
 
         # render the lidar measurements as lines from the car position
         for angle, distance in self.lidar.items():
             # Calculate the end point of the line based on car's position, orientation, and lidar measurements
-            end_x = self.car.pos_x * SCALE + distance * SCALE * np.cos(self.car.yaw + angle)
-            end_y = self.car.pos_y * SCALE + distance * SCALE * np.sin(self.car.yaw + angle)
+            end_x = self.car.pos_x * self.render_scale + distance * self.render_scale * np.cos(
+                self.car.yaw + angle
+            )
+            end_y = self.car.pos_y * self.render_scale + distance * self.render_scale * np.sin(
+                self.car.yaw + angle
+            )
 
             # Draw the lidar line using pygame
             pygame.draw.line(self.surf, (0, 255, 0), (pos_x, pos_y), (end_x, end_y), 1)
