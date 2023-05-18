@@ -20,6 +20,10 @@ pre-commit = "^3.3.1"
 pygame = "^2.4.0"
 simple-pid = "^2.0.0"
 stable-baselines3 = ">=2.0.0a1"
+tqdm = "^4.65.0"
+rich = "^13.3.5"
+wandb = "^0.15.2"
+tensorboard = "^2.13.0"
 
 
 [build-system]
