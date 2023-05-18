@@ -35,7 +35,7 @@ class HistoryWrapper(gym.Wrapper):
         return continuity_cost
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
         self.history.pop(0)
 
         obs = np.concatenate([obs, action])
@@ -47,11 +47,11 @@ class HistoryWrapper(gym.Wrapper):
             reward -= continuity_cost
             info["continuity_cost"] = continuity_cost
 
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info
 
     def reset(self):
         self.history = self._make_history()
         self.history.pop(0)
-        obs = np.concatenate([self.env.reset(), np.zeros_like(self.env.action_space.low)])
+        obs = np.concatenate([self.env.reset()[0], np.zeros_like(self.env.action_space.low)])
         self.history.append(obs)
         return np.array(self.history)
