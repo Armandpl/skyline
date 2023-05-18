@@ -48,6 +48,12 @@ class Car:
         self.max_speed = params["max_speed"]
         self.min_speed = 0.85  # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
         # TODO maybe there is a cleaner way to fix this? understand why integrating can be slow sometimes? division by zero or smth?
+        self.max_accel = params["max_accel"]
+        if params["max_steering_rate"] is not None:
+            self.max_steering_rate = np.deg2rad(params["max_steering_rate"])
+        else:
+            self.max_steering_rate = None
+        self.steering = 0
         self.width = params["body_w"]
         self.length = self.model.L
         self.state = self.initial_state
@@ -57,8 +63,25 @@ class Car:
         and 1 U[1] is between 0 and 1."""
         # TODO maybe don't clip and rescale since sb3 already does it?
         U = np.copy(U)
-        U[0] = np.clip(U[0], -1, 1) * self.max_steer
-        U[1] = np.clip(U[1], 0, 1) * (self.max_speed - self.min_speed) + self.min_speed
+        U[0] = np.clip(U[0], -1, 1) * self.max_steer  # steering command
+        U[1] = (
+            np.clip(U[1], 0, 1) * (self.max_speed - self.min_speed) + self.min_speed
+        )  # speed command
+
+        if self.max_accel is not None:
+            speed_diff = U[1] - self.speed  # desired speed diff
+            # assume we can speed up or slow down with the same limits
+            speed_diff = np.clip(speed_diff, -self.max_accel * dt, self.max_accel * dt)
+            U[1] = self.speed + speed_diff
+
+        if self.max_steering_rate is not None:
+            steering_diff = U[0] - self.steering
+            steering_diff = np.clip(
+                steering_diff, -self.max_steering_rate * dt, self.max_steering_rate * dt
+            )
+
+            self.steering += steering_diff
+            U[0] = self.steering
 
         self.state = self.model.state_transition(self.state, U, dt)
 

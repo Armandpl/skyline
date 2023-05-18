@@ -16,5 +16,5 @@ wheel_w: 0.025
 max_steer: 20 # max steer in deg, measured on the car with a level
 max_speed: 5.5 # 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
 body_w: 0.19 # car width in meters
-max_steering_rate: 0 # rad/s ?
-max_accel: 0 #
+max_steering_rate: 130 # deg/s, measured by recording vid and steering left to right
+max_accel: 25 # m/s^2, measured about ~28 by strapping my phone to the car

@@ -285,9 +285,7 @@ if __name__ == "__main__":
                 if event.key == pygame.K_RIGHT:
                     a[0] = +1.0
                 if event.key == pygame.K_UP:
-                    a[1] += 0.2
-                if event.key == pygame.K_DOWN:
-                    a[1] -= 0.2
+                    a[1] = +1
                 if event.key == pygame.K_RETURN:
                     restart = True
                 if event.key == pygame.K_ESCAPE:
@@ -298,6 +296,8 @@ if __name__ == "__main__":
                     a[0] = 0
                 if event.key == pygame.K_RIGHT:
                     a[0] = 0
+                if event.key == pygame.K_UP:
+                    a[1] = 0
 
             if event.type == pygame.QUIT:
                 quit = True
