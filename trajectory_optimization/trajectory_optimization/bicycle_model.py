@@ -12,10 +12,20 @@ import numpy as np
 import yaml
 from scipy.integrate import solve_ivp
 
+from trajectory_optimization import data_dir
+
 
 class Car:
-    def __init__(self, model_type="linear", mu_s=1.37, mu_k=1.96, initial_state=None):
+    def __init__(
+        self,
+        model_type="linear",
+        mu_s=1.37,
+        mu_k=1.96,
+        initial_state=None,
+        model_path=data_dir / "models/fazer_mk2.yaml",
+    ):
         self.model_type = model_type
+        self.model_path = model_path
 
         # init state can't be strictly zeros else computation errors
         self.initial_state = initial_state if initial_state is not None else np.array([1e-6] * 6)
@@ -25,7 +35,7 @@ class Car:
 
     def load_parameters(self):
         # TODO use hydra instead of loading and indexing the yaml
-        with open("../trajectory_optimization/model.yaml") as f:
+        with open(self.model_path) as f:
             params = yaml.safe_load(f)
         if self.model_type == "linear":
             self.model = LinearTireModel(params, self.mu_s, self.mu_k)

@@ -1,7 +1,7 @@
 # bicycle model params
 m: 1.873
-L_f: 0.14
-L_r: 0.125
+L_f: 0.14 # len to front
+L_r: 0.125 # len to rear
 load_f: 8.7 # changes when braking/accelerating, can we/should we model this?
 load_r: 9.67
 C_x: 103.9400 # still need to figure this one out
@@ -14,7 +14,7 @@ wheel_w: 0.025
 
 # additionnal params
 max_steer: 20 # max steer in deg, measured on the car with a level
-max_speed: 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
+max_speed: 5.5 # 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
 body_w: 0.19 # car width in meters
 max_steering_rate: 0 # rad/s ?
 max_accel: 0 #

@@ -4,9 +4,11 @@ import ezdxf
 import numpy as np
 import shapely.geometry as geom
 
+from trajectory_optimization import data_dir
+
 
 class Track:
-    def __init__(self, filepath="../data/tracks/vivatech_2023.dxf"):
+    def __init__(self, filepath=data_dir / "tracks/vivatech_2023.dxf"):
         self._parse_track(filepath)
 
     def _parse_track(self, filepath):
