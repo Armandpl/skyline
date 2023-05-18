@@ -20,7 +20,7 @@ WINDOW_H = 800
 # TODO compute scale based on track len
 SCALE = 100  # meters to px, 10 m = 1000 px
 
-FPS = 20  # Frames per second
+FPS = 40  # Frames per second
 
 
 class CarRacing(gym.Env):
@@ -78,8 +78,9 @@ class CarRacing(gym.Env):
     def __init__(
         self,
         render_mode: Optional[str] = None,
-        nb_rays: int = 10,
+        nb_rays: int = 13,
         random_init: bool = True,
+        crash_penalty_weight: float = 1,
         # TODO
         # track id
         # car params?
@@ -90,13 +91,19 @@ class CarRacing(gym.Env):
         # TODO lap time when lap is completed
 
         self.random_init = random_init
+        self.crash_penalty_weight = crash_penalty_weight
 
         self.action_space = spaces.Box(
-            np.array([-1, -1]).astype(np.float32),
-            np.array([0, +1]).astype(np.float32),
-        )  # steer, speed
+            low=np.array([-1, 0]).astype(np.float32),  # steering
+            high=np.array([+1, +1]).astype(np.float32),  # speed command
+        )
 
-        # TODO speed (x, y?), edge distance measurements
+        # range finder + speed TODO anything else? track curvature? distance to centerline? angle with centerline?
+        # we do need smth about we way the car is going, CW or CCW
+        # bc reward will be negative if the car goes the wrong way but drives well
+        # could also just make the progress reward absolute
+        # this makes it possible for the car to reward hack and go in circles really fast
+        # but I think the track isn't wide enough to go in circles soooo
         self.observation_space = spaces.Box(
             np.array([-np.inf] * (nb_rays + 1)).astype(np.float32),
             np.array([np.inf] * (nb_rays + 1)).astype(np.float32),
@@ -121,9 +128,23 @@ class CarRacing(gym.Env):
         assert self.car is not None
 
         progress = self.track.get_progress(self.car.pos_x, self.car.pos_y)
-        # TODO do i need to clip the action?
         self.car.step(action, 1 / FPS)
-        delta_progress = self.track.get_progress(self.car.pos_x, self.car.pos_y) - progress
+
+        # progress is measured from the starting/finish line
+        # it is measured along the centerline
+        new_progress = self.track.get_progress(self.car.pos_x, self.car.pos_y)
+
+        # if points are on either side of the line it'll mess up the delta progress computation
+        # if we cross the start line, the new progress is ~0 so we get:
+        # delta_progress=abs(~0 - track.center.length) = ~track.center.length which is not the delta progress
+        track_len = self.track.center.length
+
+        # TODO double check this
+        raw_delta_progress = new_progress - progress
+        delta_progress = raw_delta_progress - track_len * round(raw_delta_progress / track_len)
+        delta_progress = abs(delta_progress)
+
+        self.total_progress += delta_progress
 
         step_reward = delta_progress
         terminated = False
@@ -131,6 +152,9 @@ class CarRacing(gym.Env):
 
         if not self.car_inside():
             terminated = True
+            # compute a crash penalty else the agent crashes the car
+            crash_penalty = (self.car.speed**2) * self.crash_penalty_weight
+            step_reward -= crash_penalty
 
         self.lidar = self.track.get_distance_to_side(
             self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
@@ -148,7 +172,14 @@ class CarRacing(gym.Env):
         )  # to know which side of the road we're driving on
         distance_to_centerline = distance_to_centerline if road_side else -distance_to_centerline
 
-        info = {"distance_to_centerline": distance_to_centerline}
+        info = {
+            "distance_to_centerline": distance_to_centerline,
+            "total_progress": self.total_progress,
+            "pct_progress": self.total_progress / self.track.center.length * 100,
+        }
+
+        # if self.total_progress >= self.track.center.length: # lap completed
+        #     terminated = True
 
         return observation, step_reward, terminated, truncated, info
 
@@ -159,6 +190,9 @@ class CarRacing(gym.Env):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
+
+        self.total_progress = 0
+
         if self.random_init:
             x_min, y_min, x_max, y_max = self.track.outer.bounds
 
@@ -274,10 +308,11 @@ if __name__ == "__main__":
             s, r, terminated, truncated, info = env.step(a)
             env.render()
             total_reward += r
-            if steps % 200 == 0 or terminated or truncated:
+            if steps % 100 == 0 or terminated or truncated:
                 print("\naction " + str([f"{x:+0.2f}" for x in a]))
                 print(f"step {steps} total_reward {total_reward:+0.2f}")
-                print(f"obs: {s}")
+                print(f"info: {info}")
+
             steps += 1
             if terminated or truncated or restart or quit:
                 break
