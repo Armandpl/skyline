@@ -24,6 +24,7 @@ tqdm = "^4.65.0"
 rich = "^13.3.5"
 wandb = "^0.15.2"
 tensorboard = "^2.13.0"
+moviepy = "^1.0.3"
 
 
 [build-system]

@@ -12,7 +12,7 @@ from shapely.geometry import Point
 from trajectory_optimization.bicycle_model import Car
 from trajectory_optimization.track import Track
 
-VIDEO_W = 600
+VIDEO_W = 500
 VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
@@ -22,19 +22,6 @@ FPS = 40  # Frames per second
 
 class CarRacing(gym.Env):
     """## Description
-
-    The easiest control task to learn from pixels - a top-down
-    racing environment. The generated track is random every episode.
-
-    Some indicators are shown at the bottom of the window along with the
-    state RGB buffer. From left to right: true speed, four ABS sensors,
-    steering wheel position, and gyroscope.
-    To play yourself (it's rather fast for humans), type:
-    ```
-    python gymnasium/envs/box2d/car_racing.py
-    ```
-    Remember: it's a powerful rear-wheel drive car - don't press the accelerator
-    and turn at the same time.
 
     ## Action Space
     If continuous there are 3 actions :
@@ -68,6 +55,7 @@ class CarRacing(gym.Env):
     metadata = {
         "render_modes": [
             "human",
+            "rgb_array",
         ],
         "render_fps": FPS,
     }
@@ -83,6 +71,7 @@ class CarRacing(gym.Env):
         # car params?
         # randomize car param? randomize init state? randomize track
         # track and init state make sense, car don't?
+        # terminate on lap?
     ):
         # TODO lap time when lap is completed
 
@@ -90,8 +79,8 @@ class CarRacing(gym.Env):
         self.crash_penalty_weight = crash_penalty_weight
 
         self.action_space = spaces.Box(
-            low=np.array([-1, 0]).astype(np.float32),  # steering
-            high=np.array([+1, +1]).astype(np.float32),  # speed command
+            low=np.array([-1, -1]).astype(np.float32),
+            high=np.array([+1, +1]).astype(np.float32),
         )
 
         # range finder + speed TODO anything else? track curvature? distance to centerline? angle with centerline?
@@ -120,8 +109,17 @@ class CarRacing(gym.Env):
 
         return True
 
+    def _get_obs(self):
+        self.lidar = self.track.get_distance_to_side(
+            self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
+        )
+        observation = np.array([self.car.speed, *self.lidar.values()], dtype=np.float32)
+        return observation
+
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
+
+        self.steps_in_lap += 1
 
         progress = self.track.get_progress(self.car.pos_x, self.car.pos_y)
         self.car.step(action, 1 / FPS)
@@ -152,14 +150,10 @@ class CarRacing(gym.Env):
             crash_penalty = (self.car.speed**2) * self.crash_penalty_weight
             step_reward -= crash_penalty
 
-        self.lidar = self.track.get_distance_to_side(
-            self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
-        )
-        observation = np.array([self.car.speed, *self.lidar.values()])
+        observation = self._get_obs()
 
-        # TODO call it manually?
-        # if self.render_mode == "human":
-        #     self.render(lidar)
+        if self.render_mode == "human":
+            self.render()
 
         car_pos = Point(self.car.pos_x, self.car.pos_y)
         distance_to_centerline = self.track.center.distance(car_pos)
@@ -172,10 +166,14 @@ class CarRacing(gym.Env):
             "distance_to_centerline": distance_to_centerline,
             "total_progress": self.total_progress,
             "pct_progress": self.total_progress / self.track.center.length * 100,
+            "lap_time": None,
         }
 
-        # if self.total_progress >= self.track.center.length: # lap completed
-        #     terminated = True
+        if self.total_progress >= self.track.center.length:  # lap completed
+            lap_time = 1 / FPS * self.steps_in_lap
+            info["lap_time"] = lap_time
+            self.steps_in_lap = 0
+            terminated = True
 
         return observation, step_reward, terminated, truncated, info
 
@@ -188,6 +186,7 @@ class CarRacing(gym.Env):
         super().reset(seed=seed)
 
         self.total_progress = 0
+        self.steps_in_lap = 0
 
         track_x_min, track_y_min, track_x_max, track_y_max = self.track.outer.bounds
         w_scale = WINDOW_W / track_x_max  # assume track is at origin, if not it'll be tiny
@@ -196,26 +195,32 @@ class CarRacing(gym.Env):
         self.render_scale = w_scale if w_scale <= h_scale else h_scale
 
         if self.random_init:
-            # x_min, y_min, x_max, y_max = self.track.outer.bounds
-
             while True:
                 x = np.random.uniform(track_x_min, track_x_max)
                 y = np.random.uniform(track_y_min, track_y_max)
                 yaw = np.random.uniform(-np.pi, np.pi)
+
                 init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
 
                 self.car = Car(initial_state=init_state)
 
                 if self.car_inside():
                     break
+
+            # init speed
+            # TODO the way we get model params in different places is not super consistent
+            v_x = np.random.uniform(self.car.min_speed, self.car.max_speed)
+            self.car.state[3] = v_x
         else:
+            # TODO x, and y work for vivatech_2023.dxf but might not work for other track
+            # they might be outside and will make the episode terminate instantly
             init_state = np.array([1.0, 0.5, 1e-9, 1e-9, 1e-9, 1e-9])
             self.car = Car(initial_state=init_state)
 
-        return self.step(np.array([0.0, 0.0]))[0], {}
+        return self._get_obs(), {}
 
     def render(self):
-        if self.screen is None:
+        if self.screen is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
             self.screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
@@ -259,12 +264,19 @@ class CarRacing(gym.Env):
         pygame.draw.polygon(self.surf, (255, 255, 255), global_vertices)
 
         # pygame plumbing
-        pygame.event.pump()
-        self.clock.tick(self.metadata["render_fps"])
-        assert self.screen is not None
-        self.screen.fill(0)
-        self.screen.blit(self.surf, (0, 0))
-        pygame.display.flip()
+        if self.render_mode == "human":
+            pygame.event.pump()
+            self.clock.tick(self.metadata["render_fps"])
+            assert self.screen is not None
+            self.screen.fill(0)
+            self.screen.blit(self.surf, (0, 0))
+            pygame.display.flip()
+        elif self.render_mode == "rgb_array":
+            return self._create_image_array(self.surf, (VIDEO_W, VIDEO_H))
+
+    def _create_image_array(self, screen, size):
+        scaled_screen = pygame.transform.smoothscale(screen, size)
+        return np.transpose(np.array(pygame.surfarray.pixels3d(scaled_screen)), axes=(1, 0, 2))
 
     def close(self):
         if self.screen is not None:
@@ -314,7 +326,6 @@ if __name__ == "__main__":
         while True:
             register_input()
             s, r, terminated, truncated, info = env.step(a)
-            env.render()
             total_reward += r
             if steps % 100 == 0 or terminated or truncated:
                 print("\naction " + str([f"{x:+0.2f}" for x in a]))

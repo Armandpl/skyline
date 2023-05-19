@@ -1,5 +1,6 @@
 import stable_baselines3 as sb3
 import wandb
+from gymnasium.wrappers import TimeLimit
 from stable_baselines3 import SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -13,10 +14,13 @@ if __name__ == "__main__":
     def make_env():
         env = CarRacing(random_init=True, render_mode="human")
         env = HistoryWrapper(env=env, steps=2, use_continuity_cost=False)
+
+        env = TimeLimit(env, max_episode_steps=100)
         return env
 
     vec_env = DummyVecEnv([make_env])
 
+    # TODO download from artifacts
     model = SAC.load("car_test")
 
     # Enjoy trained agent
@@ -24,4 +28,3 @@ if __name__ == "__main__":
     for i in range(1000):
         action, _states = model.predict(obs, deterministic=True)
         obs, rewards, dones, info = vec_env.step(action)
-        vec_env.render()

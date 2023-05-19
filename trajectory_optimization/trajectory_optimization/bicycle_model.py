@@ -59,13 +59,17 @@ class Car:
         self.state = self.initial_state
 
     def step(self, U, dt):
-        """U is the action coming from the gym env, U[0] is delta, U[1] is speed U[0] is between -1
-        and 1 U[1] is between 0 and 1."""
+        """U is the action coming from the gym env, U[0] is delta, U[1] is speed they both are
+        normalized between -1 and 1."""
         # TODO maybe don't clip and rescale since sb3 already does it?
+        # not sure where sb3 does it though might as well do it myself
         U = np.copy(U)
         U[0] = np.clip(U[0], -1, 1) * self.max_steer  # steering command
+        U[1] = np.clip(U[1], -1, 1)
+        U[1] = (U[1] + 1) / 2  # rescale to [0, 1]
         U[1] = (
-            np.clip(U[1], 0, 1) * (self.max_speed - self.min_speed) + self.min_speed
+            U[1] * (self.max_speed - self.min_speed)
+            + self.min_speed  # rescale to [max, min] speed
         )  # speed command
 
         if self.max_accel is not None:

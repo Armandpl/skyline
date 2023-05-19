@@ -17,8 +17,8 @@ class HistoryWrapper(gym.Wrapper):
         self.step_high = np.concatenate([self.observation_space.high, self.action_space.high])
 
         # stack for each step
-        obs_low = np.tile(self.step_low, (self.steps, 1))
-        obs_high = np.tile(self.step_high, (self.steps, 1))
+        obs_low = np.tile(self.step_low, self.steps)
+        obs_high = np.tile(self.step_high, self.steps)
 
         self.observation_space = Box(low=obs_low, high=obs_high)
 
@@ -41,6 +41,7 @@ class HistoryWrapper(gym.Wrapper):
         obs = np.concatenate([obs, action])
         self.history.append(obs)
         obs = np.array(self.history)
+        obs = obs.flatten()
 
         if self.use_continuity_cost:
             continuity_cost = self._continuity_cost(obs)
@@ -54,4 +55,4 @@ class HistoryWrapper(gym.Wrapper):
         self.history.pop(0)
         obs = np.concatenate([self.env.reset()[0], np.zeros_like(self.env.action_space.low)])
         self.history.append(obs)
-        return np.array(self.history)
+        return np.array(self.history).flatten(), {}
