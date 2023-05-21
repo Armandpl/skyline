@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "trajectory-optimization"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "trajectory_optimization"}]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.12"
+numpy = "^1.24.3"
+gymnasium = "^0.28.1"
+scipy = "^1.10.1"
+pyyaml = "^6.0"
+ezdxf = "^1.0.3"
+ipykernel = "^6.22.0"
+matplotlib = "^3.7.1"
+shapely = "^2.0.1"
+pre-commit = "^3.3.1"
+pygame = "^2.4.0"
+simple-pid = "^2.0.0"
+stable-baselines3 = ">=2.0.0a1"
+tqdm = "^4.65.0"
+rich = "^13.3.5"
+wandb = "^0.15.2"
+tensorboard = "^2.13.0"
+moviepy = "^1.0.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

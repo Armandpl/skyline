@@ -1,0 +1,4 @@
+train:
+  _target_: trajectory_prediction.datasets.SteeringDataset
+  root_dir: "../trajectory_optimization/data/centerline_trajectories"
+  labels_file: "../trajectory_optimization/data/centerline_trajectories.txt"
