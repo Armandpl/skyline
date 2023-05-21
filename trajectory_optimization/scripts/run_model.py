@@ -4,21 +4,14 @@ from gymnasium.wrappers import TimeLimit
 from stable_baselines3 import SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env.dummy_vec_env import DummyVecEnv
+from train import make_env
 from wandb.integration.sb3 import WandbCallback
 
 from trajectory_optimization.car_env import CarRacing
 from trajectory_optimization.wrappers import HistoryWrapper
 
 if __name__ == "__main__":
-
-    def make_env():
-        env = CarRacing(random_init=True, render_mode="human")
-        env = HistoryWrapper(env=env, steps=2, use_continuity_cost=False)
-
-        env = TimeLimit(env, max_episode_steps=100)
-        return env
-
-    vec_env = DummyVecEnv([make_env])
+    vec_env = DummyVecEnv([lambda: make_env(render_mode="human")])
 
     # TODO download from artifacts
     model = SAC.load("car_test")
