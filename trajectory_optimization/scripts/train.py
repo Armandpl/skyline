@@ -4,17 +4,15 @@ from gymnasium.wrappers import TimeLimit
 from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecVideoRecorder
-from wandb.integration.sb3 import WandbCallback
+from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 
 from trajectory_optimization.car_env import CarRacing
 from trajectory_optimization.wrappers import HistoryWrapper
 
 
-def make_env():
-    env = CarRacing(random_init=True, crash_penalty_weight=0, render_mode="rgb_array")
+def make_env(render_mode="rgb_array"):
+    env = CarRacing(random_init=True, crash_penalty_weight=0, render_mode=render_mode)
     check_env(env)
     env = HistoryWrapper(env=env, steps=2, use_continuity_cost=False)
     # env = TimeLimit(env, max_episode_steps=500)
@@ -40,6 +38,7 @@ def main():
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
         monitor_gym=True,  # auto-upload the videos of agents playing the game
         # save_code=True,  # optional
+        job_type="train_agent",
     )
     vec_env = DummyVecEnv([make_env])
 
