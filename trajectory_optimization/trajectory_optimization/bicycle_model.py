@@ -58,9 +58,7 @@ class Car:
         self.length = self.model.L
         self.state = self.initial_state
 
-    def step(self, U, dt):
-        """U is the action coming from the gym env, U[0] is delta, U[1] is speed they both are
-        normalized between -1 and 1."""
+    def denormalize_action(self, U):
         # TODO maybe don't clip and rescale since sb3 already does it?
         # not sure where sb3 does it though might as well do it myself
         U = np.copy(U)
@@ -71,6 +69,12 @@ class Car:
             U[1] * (self.max_speed - self.min_speed)
             + self.min_speed  # rescale to [max, min] speed
         )  # speed command
+        return U
+
+    def step(self, U, dt):
+        """U is the action coming from the gym env, U[0] is delta, U[1] is speed they both are
+        normalized between -1 and 1."""
+        U = self.denormalize_action(U)
 
         if self.max_accel is not None:
             speed_diff = U[1] - self.speed  # desired speed diff
