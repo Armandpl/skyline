@@ -8,6 +8,8 @@ Code based on MATLAB simulation code written by Emily Yunan, located
 at https://github.com/jsford/FFAST.
 """
 
+from typing import Optional
+
 import numpy as np
 import yaml
 from scipy.integrate import solve_ivp
@@ -16,6 +18,13 @@ from trajectory_optimization import data_dir
 
 
 class Car:
+    """wrapper around bicycle model to:
+
+    - load params
+    - implement steering rate and max accel
+    - have getters and setters for system state
+    """
+
     def __init__(
         self,
         model_type="linear",
@@ -23,23 +32,23 @@ class Car:
         mu_k=1.96,
         initial_state=None,
         model_path=data_dir / "models/fazer_mk2.yaml",
+        fixed_speed: Optional[float] = None,  # only control the car steering
     ):
-        self.model_type = model_type
-        self.model_path = model_path
+        self.fixed_speed = fixed_speed
 
         # init state can't be strictly zeros else computation errors
         self.initial_state = initial_state if initial_state is not None else np.array([1e-6] * 6)
         self.mu_s = mu_s  # TODO load that from yaml? what is it?
         self.mu_k = mu_k
-        self.load_parameters()
+        self.load_parameters(model_path, model_type)
 
-    def load_parameters(self):
+    def load_parameters(self, model_path, model_type):
         # TODO use hydra instead of loading and indexing the yaml
-        with open(self.model_path) as f:
+        with open(model_path) as f:
             params = yaml.safe_load(f)
-        if self.model_type == "linear":
+        if model_type == "linear":
             self.model = LinearTireModel(params, self.mu_s, self.mu_k)
-        elif self.model_type == "brush":
+        elif model_type == "brush":
             self.model = BrushTireModel(params, self.mu_s, self.mu_k)
         else:
             raise ValueError("Invalid model type")
@@ -48,39 +57,31 @@ class Car:
         self.max_speed = params["max_speed"]
         self.min_speed = 0.85  # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
         # TODO maybe there is a cleaner way to fix this? understand why integrating can be slow sometimes? division by zero or smth?
+
         self.max_accel = params["max_accel"]
         if params["max_steering_rate"] is not None:
             self.max_steering_rate = np.deg2rad(params["max_steering_rate"])
         else:
             self.max_steering_rate = None
+
         self.steering = 0
         self.width = params["body_w"]
         self.length = self.model.L
         self.state = self.initial_state
 
-    def denormalize_action(self, U):
-        # TODO maybe don't clip and rescale since sb3 already does it?
-        # not sure where sb3 does it though might as well do it myself
-        U = np.copy(U)
-        U[0] = np.clip(U[0], -1, 1) * self.max_steer  # steering command
-        U[1] = np.clip(U[1], -1, 1)
-        U[1] = (U[1] + 1) / 2  # rescale to [0, 1]
-        U[1] = (
-            U[1] * (self.max_speed - self.min_speed)
-            + self.min_speed  # rescale to [max, min] speed
-        )  # speed command
-        return U
-
     def step(self, U, dt):
-        """U is the action coming from the gym env, U[0] is delta, U[1] is speed they both are
-        normalized between -1 and 1."""
-        U = self.denormalize_action(U)
+        """U[0] is delta in rad, U[1] is speed in m/s In the case of fixed speed, there is no speed
+        command, only U[0] steering."""
 
-        if self.max_accel is not None:
+        if self.max_accel is not None and self.fixed_speed is None:
             speed_diff = U[1] - self.speed  # desired speed diff
             # assume we can speed up or slow down with the same limits
             speed_diff = np.clip(speed_diff, -self.max_accel * dt, self.max_accel * dt)
             U[1] = self.speed + speed_diff
+
+        if self.fixed_speed is not None:
+            U = np.array([U[0], 0], dtype=np.float32)
+            U[1] = self.fixed_speed
 
         if self.max_steering_rate is not None:
             steering_diff = U[0] - self.steering
@@ -95,7 +96,9 @@ class Car:
 
     @property
     def vertices(self):
-        # Calculate the car's rectangle vertices based on its position and orientation
+        """Calculate the car's rectangle vertices based on its position, orientation and body
+        size."""
+
         half_width = self.width / 2
         L_f, L_r = self.model.L_f, self.model.L_r
 
@@ -144,6 +147,9 @@ class Car:
     @property
     def speed(self):
         return np.sqrt(np.power(self.v_x, 2) + np.power(self.v_y, 2))
+
+    def set_speed(self, v_x):
+        self.state[3] = v_x
 
     @property
     def yaw_rate(self):

@@ -56,3 +56,51 @@ class HistoryWrapper(gym.Wrapper):
         obs = np.concatenate([self.env.reset()[0], np.zeros_like(self.env.action_space.low)])
         self.history.append(obs)
         return np.array(self.history).flatten(), {}
+
+
+class RescaleWrapper(gym.Wrapper):
+    """Linearly rescale observation and action space between -1 and 1."""
+
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+
+        self.observation_space = Box(
+            low=np.zeros_like(self.env.observation_space.low) - 1,
+            high=np.zeros_like(self.env.observation_space.low) + 1,
+        )
+        self.action_space = Box(
+            low=np.zeros_like(self.env.action_space.low) - 1,
+            high=np.zeros_like(self.env.action_space.low) + 1,
+        )
+
+    def rescale_to_minus_plus_one(self, value, low, high):
+        # rescale from original range to [-1, 1]
+        value = np.clip(value, low, high)
+        range_old = high - low
+        range_new = 2.0  # as the range is now -1 to 1
+
+        # apply the transformation
+        rescaled_value = -1 + ((value - low) / range_old) * range_new
+        return rescaled_value
+
+    def rescale_from_minus_plus_one(self, value, low, high):
+        # rescale from [-1, 1] to original range
+        value = np.clip(value, -1, 1)
+        range_old = 2.0  # as the range is now -1 to 1
+        range_new = high - low
+
+        # apply the transformation
+        rescaled_value = low + ((value + 1) / range_old) * range_new
+        return rescaled_value
+
+    def step(self, action):
+        # Rescale action, from [-1,1] to original action_space
+        action = self.rescale_from_minus_plus_one(
+            action, self.env.action_space.low, self.env.action_space.high
+        )
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        # Rescale observation, from original observation_space to [-1,1]
+        obs = self.rescale_to_minus_plus_one(
+            obs, self.env.observation_space.low, self.env.observation_space.high
+        )
+        return obs, reward, terminated, truncated, info

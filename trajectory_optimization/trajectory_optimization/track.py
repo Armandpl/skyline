@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 import ezdxf
@@ -8,28 +9,49 @@ from trajectory_optimization import data_dir
 
 
 class Track:
-    def __init__(self, filepath=data_dir / "tracks/vivatech_2023.dxf"):
+    def __init__(
+        self,
+        filepath=data_dir / "tracks/vivatech_2023.dxf",
+        obstacles_filepath=data_dir / "tracks/vivatech_2023_obstacles.dxf",
+    ):
         self._parse_track(filepath)
 
-    def _parse_track(self, filepath):
+        if obstacles_filepath is not None:
+            self._parse_obstacles(
+                obstacles_filepath
+            )  # coodinates system needs to line up w/ the track
+        else:
+            self.obstacles = []
+
+    def _parse_dxf(self, filepath):
         doc = ezdxf.readfile(filepath)
         msp = doc.modelspace()
 
-        lines = []
+        linear_rings = []
         # each track line is a lwpolyline (https://ezdxf.readthedocs.io/en/stable/tutorials/lwpolyline.html)
-        for lwpolyline in list(msp):
-            # convert from exdxf entity to shapely linear ring
-            lines.append(convert_closed_lwpolyline(lwpolyline))
-            # TODO dxf is a bit finicky, maybe save tracks as np.arrays, might be more robust in time
+        # or a circle, and we convert both to shapely linear rings
+        for entity in list(msp):
+            if isinstance(entity, ezdxf.entities.LWPolyline):
+                linear_rings.append(convert_closed_lwpolyline(entity))
+            elif isinstance(entity, ezdxf.entities.Circle):
+                linear_rings.append(convert_circle(entity))
+            else:
+                logging.warning(f"Unexpected ezdxf entity: {type(entity)}, skipping")
+            # TODO dxf is a bit finicky, maybe save tracks as np.arrays, might be more timeproof
 
+        return linear_rings
+
+    def _parse_track(self, filepath):
+        lines = self._parse_dxf(filepath)
         lines.sort(key=lambda x: x.length)
 
         # inner < center < outer
         self.inner, self.center, self.outer = lines
         self.asphalt = geom.Polygon(shell=self.outer, holes=[self.inner])
-        self.center_polygon = geom.Polygon(
-            shell=self.center
-        )  # to know which side of the road we're on, # TODO delete now that we don't need pid anymore?
+
+    def _parse_obstacles(self, filepath):
+        self.obstacles = self._parse_dxf(filepath)
+        self.obstacles = [geom.Polygon(linear_ring) for linear_ring in self.obstacles]
 
     def is_inside(self, x, y):
         """given x, y coords, check if they are inside the track (between inner and outer)"""
@@ -41,29 +63,54 @@ class Track:
         point = geom.Point(x, y)
         return self.center.project(point)
 
-    def get_distance_to_side(self, x, y, angle, angles=[-90, -45, 0, 45, 90]):
-        """given the car coordinates and orientation raymarch to the sides of the track (at
-        different agnles) and return the distance kind of like lidar."""
+    def _get_distances_to_objects(self, x, y, yaw, objects, angles):
+        """given the car coordinates and orientation raymarch to objects (at different agnles) and
+        return the distance kind of like lidar."""
         origin = geom.Point(x, y)
-        distances = {}
+        lidar = {}
         for a in angles:
             # Calculate end point of the ray
             a = np.radians(a)
-            theta = a + angle
+            theta = a + yaw
             end_x = x + 1000 * np.cos(theta)
             end_y = y + 1000 * np.sin(theta)
             line = geom.LineString([(x, y), (end_x, end_y)])
 
-            # Calculate intersections with inner and outer lines
-            inner_intersection = line.intersection(self.inner)
-            outer_intersection = line.intersection(self.outer)
+            # Calculate intersections with objects (track lines or obstacles)
+            intersections = [line.intersection(o) for o in objects]
 
             # Get distances to the intersections and store the minimum distance
-            inner_distance = origin.distance(inner_intersection) if inner_intersection else np.inf
-            outer_distance = origin.distance(outer_intersection) if outer_intersection else np.inf
-            distances[a] = min(inner_distance, outer_distance)
+            distances = [
+                origin.distance(intersection) if intersection else np.inf
+                for intersection in intersections
+            ]
+            lidar[a] = min(distances)
 
-        return distances
+        return lidar
+
+    def get_distances_to_sides(self, x, y, yaw, angles=[-90, -45, 0, 45, 90]):
+        objects = [self.inner, self.outer]
+
+        return self._get_distances_to_objects(x, y, yaw, objects, angles)
+
+    def get_distances_to_obstacles(self, x, y, yaw, angles=[-90, -45, 0, 45, 90]):
+        return self._get_distances_to_objects(x, y, yaw, self.obstacles, angles)
+
+
+def convert_circle(
+    circle: ezdxf.entities.Circle, degrees_per_segment: float = 0.5
+) -> geom.LinearRing:
+
+    circle = circle.dxf
+    xy = arc_points(
+        start_angle=0,
+        end_angle=2 * np.pi,
+        radius=circle.radius,
+        center=circle.center,
+        degrees_per_segment=degrees_per_segment,
+    )
+
+    return geom.LinearRing(xy)
 
 
 def convert_closed_lwpolyline(
