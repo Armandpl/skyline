@@ -1,0 +1,7 @@
+train:
+  _target_: trajectory_prediction.datasets.TrajectoryDataset
+  root_dir: "../trajectory_optimization/data/rl_trajectories"
+  N: 15
+test:
+  _target_: trajectory_prediction.datasets.TestTrajectoryDataset
+  root_dir: "data/real_images_test_set"

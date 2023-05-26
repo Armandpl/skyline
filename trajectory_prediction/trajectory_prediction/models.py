@@ -22,6 +22,7 @@ class TransferNet(nn.Module):
     def forward(self, x):
         # Pass the input through the ResNet18 layers
         x = self.resnet18(x)
+        x = torch.tanh(x) * 2.5  # allows predicting points up to 2.5m away
         return x
 
     def get_transforms(self):
@@ -29,6 +30,8 @@ class TransferNet(nn.Module):
             [
                 transforms.ConvertImageDtype(torch.float),
                 transforms.Resize((224, 224), antialias=True),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),  # imagenet
             ]
         )
