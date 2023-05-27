@@ -26,7 +26,7 @@ class CarRacing(gym.Env):
 
     def __init__(
         self,
-        render_mode: Optional[str] = None,
+        render_mode: Optional[str] = "rgb_array",
         nb_rays: int = 13,
         max_lidar_distance: float = 15,  # max lidar distance, in m
         random_init: bool = True,
@@ -86,6 +86,7 @@ class CarRacing(gym.Env):
                 outside += 1
                 if outside > self.max_wheels_out:
                     return True
+        return False
 
     def _is_crashed(self) -> bool:
         """check if any of the car vertices is inside an obstacle."""
@@ -93,6 +94,7 @@ class CarRacing(gym.Env):
             for obstacle in self.track.obstacles:
                 if obstacle.contains(Point(x, y)):
                     return True
+        return False
 
     def _get_obs(self):
         self.lidar = self.track.get_distances_to_sides(

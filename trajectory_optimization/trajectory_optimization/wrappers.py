@@ -104,3 +104,10 @@ class RescaleWrapper(gym.Wrapper):
             obs, self.env.observation_space.low, self.env.observation_space.high
         )
         return obs, reward, terminated, truncated, info
+
+    def reset(self):
+        obs, info = self.env.reset()
+        obs = self.rescale_from_minus_plus_one(
+            obs, self.env.observation_space.low, self.env.observation_space.high
+        )
+        return obs, info

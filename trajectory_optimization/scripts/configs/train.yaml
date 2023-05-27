@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - env: base.yaml
+
+# train
+max_steps: 2_000_000
+use_sde: True
+gamma: 0.98
+
+# model
+model_artifact_name: null # "model:v1"
+
+# reproducibility
+# seed: 1234
+# cudnn_deterministic: False
+
+# logging
+wandb_project: "skyline"
+video_freq: 10 # log every max_steps//video_freq steps
+video_length: 500
