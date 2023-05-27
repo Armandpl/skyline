@@ -30,7 +30,7 @@ def load_model_and_instantiate_env(artifact_alias="agent:latest", time_limit=Non
     model = SAC.load(artifact_dir / "model.zip")
 
     env_config = artifact.logged_by().config["env"]
-    env = hydra.utils.instantiate(env_config, **env_kwargs)
+    env = hydra.utils.instantiate(env_config, **env_kwargs, _recursive_=False)
     make_env = (
         lambda: wrap_env(env)
         if time_limit is None

@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   # use this to override using files
-  - override /env: base
+  - override /env: base_env
 
 # use this to override specific params here
 # maybe not the best practice though?

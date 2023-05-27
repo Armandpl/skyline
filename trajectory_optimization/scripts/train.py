@@ -21,7 +21,7 @@ class LapTimeCallback(BaseCallback):
 
 @hydra.main(version_base="1.3", config_path="configs", config_name="train")
 def main(cfg: DictConfig):
-
+    print(cfg)
     # setup wandb
     # wandb expect a primitive dict
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
@@ -34,7 +34,7 @@ def main(cfg: DictConfig):
         job_type="train_agent",
     )
 
-    env = hydra.utils.instantiate(cfg.env)
+    env = hydra.utils.instantiate(cfg.env, _recursive_=False)
     vec_env = DummyVecEnv([lambda: wrap_env(env)])
 
     # Record the video starting at the first step

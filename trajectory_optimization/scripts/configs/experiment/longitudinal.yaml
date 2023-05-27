@@ -1,4 +1,0 @@
-# @package _global_
-# ok so ^ this is not a comment this is so /env resolves to the top level config
-defaults:
-  - override /env: longitudinal

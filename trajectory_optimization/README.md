@@ -1,6 +1,8 @@
 ## How to train
 
-Configure you experiment under `scripts/configs/experiments` then run `python train +experiment=your_experiment.yaml`
+Configure you experiment under `scripts/configs/experiments` then run `python train +experiment=your_experiment`
+Sometime the whole experiment config is in the env params and you can go `python train env=longitudinal_slow`
+Run `python train --cfg job` to print and debug your config.
 
 # Note about designing tracks in Fusion360 to export as dxf
 

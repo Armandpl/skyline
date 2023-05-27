@@ -1,14 +1,14 @@
-from pathlib import Path
 from typing import Optional, Union
 
 import gymnasium as gym
+import hydra
 import numpy as np
 import pygame
 from gymnasium import spaces
+from omegaconf import DictConfig, OmegaConf
 from shapely.geometry import Point
 
 from trajectory_optimization import data_dir
-from trajectory_optimization.bicycle_model import Car
 from trajectory_optimization.track import Track
 from trajectory_optimization.wrappers import RescaleWrapper
 
@@ -28,6 +28,9 @@ class CarRacing(gym.Env):
 
     def __init__(
         self,
+        car_config: DictConfig,
+        track="tracks/vivatech_2023.dxf",
+        track_obstacles="tracks/vivatech_2023_obstacles.dxf",
         render_mode: Optional[str] = "rgb_array",
         nb_rays: int = 13,
         max_lidar_distance: float = 15,  # max lidar distance, in m
@@ -35,33 +38,27 @@ class CarRacing(gym.Env):
         fps: int = 30,  # fps == dt
         fixed_speed: Optional[float] = None,
         max_wheels_out: int = 2,
-        # put them last and gave default so that we can still instantiate from previous runs
-        track="tracks/vivatech_2023.dxf",
-        track_obstacles="tracks/vivatech_2023_obstacles.dxf",
         # TODO
         # track id
         # car params?
         # randomize car param? randomize track?
     ):
-
+        self.car_config = car_config
         self.random_init = random_init
         self.fixed_speed = fixed_speed
         self.max_wheels_out = max_wheels_out
         self.max_lidar_distance = max_lidar_distance
 
-        # Instantiate dummy car to get parameters (max steering/speed)
-        # to set the action space
-        tmp_car = Car()
-
+        max_steer_rad = np.deg2rad(car_config.max_steer)
         if self.fixed_speed is None:
             self.action_space = spaces.Box(
-                low=np.array([-tmp_car.max_steer, tmp_car.min_speed]).astype(np.float32),
-                high=np.array([+tmp_car.max_steer, tmp_car.max_speed]).astype(np.float32),
+                low=np.array([-max_steer_rad, car_config.min_speed]).astype(np.float32),
+                high=np.array([+max_steer_rad, car_config.max_speed]).astype(np.float32),
             )
         else:
             self.action_space = spaces.Box(
-                low=np.array([-tmp_car.max_steer]).astype(np.float32),
-                high=np.array([+tmp_car.max_steer]).astype(np.float32),
+                low=np.array([-max_steer_rad]).astype(np.float32),
+                high=np.array([+max_steer_rad]).astype(np.float32),
             )
 
         self.track = Track(
@@ -193,7 +190,10 @@ class CarRacing(gym.Env):
 
                 init_state = np.array([x, y, yaw, 1e-9, 1e-9, 1e-9])
 
-                self.car = Car(initial_state=init_state, fixed_speed=self.fixed_speed)
+                self.car = hydra.utils.instantiate(
+                    self.car_config, initial_state=init_state, fixed_speed=self.fixed_speed
+                )
+                # self.car = Car(initial_state=init_state, fixed_speed=self.fixed_speed)
 
                 if not (self._is_outside() or self._is_crashed()):
                     break
@@ -207,7 +207,10 @@ class CarRacing(gym.Env):
             # they might be outside and will make the episode terminate instantly
             # fix could be to always randomly spawn the car
             init_state = np.array([1.0, 0.5, 1e-9, 1e-9, 1e-9, 1e-9])
-            self.car = Car(initial_state=init_state, fixed_speed=self.fixed_speed)
+            self.car = hydra.utils.instantiate(
+                self.car_config, initial_state=init_state, fixed_speed=self.fixed_speed
+            )
+            # self.car = Car(initial_state=init_state, fixed_speed=self.fixed_speed)
 
         return self._get_obs(), {}
 
@@ -331,7 +334,8 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:
                 quit = True
 
-    env = CarRacing(render_mode="human")
+    car_config = OmegaConf.load("../scripts/configs/env/car_config/base_car.yaml")
+    env = CarRacing(car_config, render_mode="human")
     env = RescaleWrapper(env)
 
     quit = False
