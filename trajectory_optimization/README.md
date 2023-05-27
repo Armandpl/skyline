@@ -1,3 +1,7 @@
+## How to train
+
+Configure you experiment under `scripts/configs/experiments` then run `python train +experiment=your_experiment.yaml`
+
 # Note about designing tracks in Fusion360 to export as dxf
 
 Polyline are easier to parse from dxf files because they don't require matching the start and end of lines and arcs. However, there is no polyline tool in Fusion360, the trick is to create a polygon and delete it's center constraint, then you can freely move the polygon points.

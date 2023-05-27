@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional, Union
 
 import gymnasium as gym
@@ -6,6 +7,7 @@ import pygame
 from gymnasium import spaces
 from shapely.geometry import Point
 
+from trajectory_optimization import data_dir
 from trajectory_optimization.bicycle_model import Car
 from trajectory_optimization.track import Track
 from trajectory_optimization.wrappers import RescaleWrapper
@@ -33,6 +35,9 @@ class CarRacing(gym.Env):
         fps: int = 30,  # fps == dt
         fixed_speed: Optional[float] = None,
         max_wheels_out: int = 2,
+        # put them last and gave default so that we can still instantiate from previous runs
+        track="tracks/vivatech_2023.dxf",
+        track_obstacles="tracks/vivatech_2023_obstacles.dxf",
         # TODO
         # track id
         # car params?
@@ -44,6 +49,8 @@ class CarRacing(gym.Env):
         self.max_wheels_out = max_wheels_out
         self.max_lidar_distance = max_lidar_distance
 
+        # Instantiate dummy car to get parameters (max steering/speed)
+        # to set the action space
         tmp_car = Car()
 
         if self.fixed_speed is None:
@@ -57,7 +64,9 @@ class CarRacing(gym.Env):
                 high=np.array([+tmp_car.max_steer]).astype(np.float32),
             )
 
-        self.track = Track()
+        self.track = Track(
+            filepath=data_dir / track, obstacles_filepath=data_dir / track_obstacles
+        )
 
         # add a lidar for obstacles if there obstacles on the track
         # nb_rays + 1 if no obstacles, nb_rays * 2 + 1 if obstacles
@@ -80,12 +89,13 @@ class CarRacing(gym.Env):
         if not self.track.is_inside(self.car.pos_x, self.car.pos_y):
             return True
 
-        outside = 0
-        for x, y in self.car.vertices:
-            if not self.track.is_inside(x, y):
-                outside += 1
-                if outside > self.max_wheels_out:
-                    return True
+        if self.max_wheels_out < 4:
+            outside = 0
+            for x, y in self.car.vertices:
+                if not self.track.is_inside(x, y):
+                    outside += 1
+                    if outside > self.max_wheels_out:
+                        return True
         return False
 
     def _is_crashed(self) -> bool:

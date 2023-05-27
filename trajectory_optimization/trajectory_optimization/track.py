@@ -11,8 +11,8 @@ from trajectory_optimization import data_dir
 class Track:
     def __init__(
         self,
-        filepath=data_dir / "tracks/vivatech_2023.dxf",
-        obstacles_filepath=data_dir / "tracks/vivatech_2023_obstacles.dxf",
+        filepath,
+        obstacles_filepath=None,
     ):
         self._parse_track(filepath)
 
