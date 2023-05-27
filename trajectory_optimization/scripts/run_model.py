@@ -35,7 +35,8 @@ if __name__ == "__main__":
     speed = trajectory[:, 2]  # get the speed column
 
     # compute difference in speed between consecutive elements
-    delta_speed = np.diff(speed, prepend=speed[0])
+    dt = 1 / env.unwrapped.fps
+    delta_speed = np.diff(speed, prepend=speed[0]) / dt
 
     # add the acceleration column to the numpy array
     trajectory = np.column_stack((trajectory, delta_speed))
