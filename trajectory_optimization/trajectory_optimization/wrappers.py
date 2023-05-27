@@ -99,6 +99,7 @@ class RescaleWrapper(gym.Wrapper):
             action, self.env.action_space.low, self.env.action_space.high
         )
         obs, reward, terminated, truncated, info = self.env.step(action)
+        info["rescaled_action"] = action
         # Rescale observation, from original observation_space to [-1,1]
         obs = self.rescale_to_minus_plus_one(
             obs, self.env.observation_space.low, self.env.observation_space.high
