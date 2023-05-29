@@ -30,6 +30,7 @@ if __name__ == "__main__":
         car = env.unwrapped.car
         trajectory.append([car.pos_x, car.pos_y, car.speed])
 
+    # TODO could at least make that a function!
     trajectory = np.array(trajectory)
 
     speed = trajectory[:, 2]  # get the speed column
@@ -52,8 +53,8 @@ if __name__ == "__main__":
     cmap = plt.get_cmap("RdYlGn")
     norm = TwoSlopeNorm(vmin=min(acc), vcenter=0, vmax=max(acc))
 
-    plt.plot(*track.outer.xy, color="black")
-    plt.plot(*track.inner.xy, color="black")
+    plt.plot(*track.outer.xy, color="white")
+    plt.plot(*track.inner.xy, color="white")
 
     # Create scatter plot with color mapping to acceleration
     sc = plt.scatter(x, y, c=acc, cmap=cmap, norm=norm, s=10)
@@ -61,7 +62,9 @@ if __name__ == "__main__":
     # Create a colorbar
     plt.colorbar(sc, label="Acceleration")
 
-    plt.gca().set_aspect("equal", adjustable="box")
+    ax = plt.gca()
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_facecolor("black")
     plt.show()
 
     env.close()
