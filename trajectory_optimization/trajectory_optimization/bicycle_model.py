@@ -162,6 +162,9 @@ class Car:
     def step(self, U, dt):
         """U[0] is delta in rad, U[1] is speed in m/s In the case of fixed speed, there is no speed
         command, only U[0] steering."""
+        U = np.copy(
+            U
+        )  # else we modify the action sent by the RL algo and probably mess up its training data
 
         if self.max_accel is not None and self.fixed_speed is None:
             speed_diff = U[1] - self.speed  # desired speed diff
