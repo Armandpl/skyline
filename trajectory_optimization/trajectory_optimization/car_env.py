@@ -67,10 +67,12 @@ class CarRacing(gym.Env):
 
         # add a lidar for obstacles if there obstacles on the track
         # nb_rays + 1 if no obstacles, nb_rays * 2 + 1 if obstacles
-        observation_shape = nb_rays * (1 + 1 * (len(self.track.obstacles) > 0)) + 1
+        total_nb_rays = nb_rays * (1 + 1 * (len(self.track.obstacles) > 0))
+        low_obs = np.array([*[0] * total_nb_rays, car_config.min_speed])
+        high_obs = np.array([*[max_lidar_distance] * total_nb_rays, car_config.max_speed])
         self.observation_space = spaces.Box(
-            low=np.array([-1] * observation_shape).astype(np.float32),
-            high=np.array([+1] * observation_shape).astype(np.float32),
+            low=low_obs,
+            high=high_obs,
         )
 
         self.rays = np.linspace(-90, 90, nb_rays)
@@ -351,7 +353,7 @@ if __name__ == "__main__":
             total_reward += r
             if steps % 100 == 0 or terminated or truncated:
                 print("\naction " + str([f"{x:+0.2f}" for x in a]))
-                print(f"step {steps} total_reward {total_reward:+0.2f}")
+                print(f"step {steps} total_reward {total_reward:+0.2f}, obs: {s}")
                 print(f"info: {info}")
 
             steps += 1
