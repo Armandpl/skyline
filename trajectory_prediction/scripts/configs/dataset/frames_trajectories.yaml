@@ -1,7 +1,7 @@
 train:
   _target_: trajectory_prediction.datasets.TrajectoryDataset
-  root_dir: "../trajectory_optimization/data/rl_trajectories"
+  root_dir: "../../trajectory_optimization/data/fixed_speed_50k"
   N: 15
 test:
   _target_: trajectory_prediction.datasets.TestTrajectoryDataset
-  root_dir: "data/real_images_test_set"
+  root_dir: "../data/real_images_test_set"

@@ -7,9 +7,9 @@ val_pct: 0.02
 
 # train
 lr: 1e-3
-batch_size: 64
-epochs: 1
-val_freq: 10 # number of time we eval per epoch
+batch_size: 128
+epochs: 10
+val_freq: 1 # number of time we eval per epoch
 
 # debug
 # null = don't overfit
@@ -19,8 +19,8 @@ overfit_batches: null
 num_workers: 8
 pin_memory: True
 
-# model
-model_artifact_name: null # "model:v1"
+# model to load
+model_artifact_name: null # "model:v6"
 
 # reproducibility
 seed: 1234
@@ -28,5 +28,5 @@ cudnn_deterministic: False
 
 # logging
 wandb:
-  project: "skyline_trajectory_prediction"
+  project: "skyline"
   job_type: "train_trajectory"
