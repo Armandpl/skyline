@@ -1052,6 +1052,18 @@ MarkupSafe = ">=2.0"
 i18n = ["Babel (>=2.7)"]
 
 [[package]]
+name = "joblib"
+version = "1.2.0"
+description = "Lightweight pipelining with Python functions"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "joblib-1.2.0-py3-none-any.whl", hash = "sha256:091138ed78f800342968c523bdde947e7a305b8594b910a0fea2ab83c3c6d385"},
+    {file = "joblib-1.2.0.tar.gz", hash = "sha256:e1cee4a79e4af22881164f218d4311f60074197fb707e082e803b61f6d137018"},
+]
+
+[[package]]
 name = "jsonpointer"
 version = "2.3"
 description = "Identify specific nodes in a JSON document (RFC 6901)"
@@ -1877,12 +1889,12 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version <= \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
-    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
-    {version = ">=1.22.0", markers = "python_version >= \"3.11\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.6\" and platform_system == \"Linux\" and platform_machine == \"aarch64\" or python_version >= \"3.9\""},
     {version = ">=1.17.0", markers = "python_version >= \"3.7\""},
     {version = ">=1.17.3", markers = "python_version >= \"3.8\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\""},
+    {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
+    {version = ">=1.22.0", markers = "python_version >= \"3.11\""},
 ]
 
 [[package]]
@@ -3119,14 +3131,14 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.3)", "coverage-enable-subprocess
 
 [[package]]
 name = "wandb"
-version = "0.15.2"
+version = "0.15.3"
 description = "A CLI and library for interacting with the Weights and Biases API."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "wandb-0.15.2-py3-none-any.whl", hash = "sha256:5500ce9648b560e56205591a8638f1cd2767fbceeb72c76f4335a2d420f579d4"},
-    {file = "wandb-0.15.2.tar.gz", hash = "sha256:0dd9f6d44d043cf681a18e3d32272a699bdb41c5e1770e5d2558bc807ff0d402"},
+    {file = "wandb-0.15.3-py3-none-any.whl", hash = "sha256:f9e0b8cd53a3564dc8e54967c251860bd023f0ee2a450c4407fe97f771dcfa9e"},
+    {file = "wandb-0.15.3.tar.gz", hash = "sha256:f9325901e0dff8e9a471d4a3e2102aa7bc26c7171afaf21a978ffb2cc7df4b3c"},
 ]
 
 [package.dependencies]
@@ -3248,4 +3260,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "c3dbfdef3915a5a10ede391b3dc21a14bb54eee958b9394bfabbaf7befb06ab4"
+content-hash = "10ba976b0f919b72568bae6064b453f428595baf2cc38f9cd90909962139ca7b"
