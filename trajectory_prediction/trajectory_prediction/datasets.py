@@ -45,7 +45,7 @@ def rotate_trajectory(traj, yaw):
 class TrajectoryDataset(Dataset):
     def __init__(self, root_dir, N, transform=None):
         self.root_dir = Path(root_dir)
-        self.image_dir = self.root_dir / "images"
+        self.image_dir = self.root_dir / "processed_images"
         self.N = N
         self.trajectory_data = np.loadtxt(self.root_dir / "trajectories.txt")
         self.valid_indices = self.get_valid_indices()
@@ -79,7 +79,7 @@ class TrajectoryDataset(Dataset):
         order_of_magnitude = math.floor(
             math.log10(len(self.trajectory_data))
         )  # how many zeros in image names
-        img_pth = self.image_dir / f"{str(img_idx).zfill(order_of_magnitude)}.png"
+        img_pth = self.image_dir / f"{str(img_idx).zfill(order_of_magnitude)}.jpg"
         image = read_image(str(img_pth))
         if self.transform:
             image = self.transform(image)

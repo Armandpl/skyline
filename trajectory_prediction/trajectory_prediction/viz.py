@@ -7,6 +7,17 @@ from scipy.spatial.transform import Rotation as R
 from torchvision.transforms.functional import to_pil_image
 from tqdm import trange
 
+from trajectory_prediction.camera import (
+    CENTER_X,
+    CENTER_Y,
+    CROP_H,
+    CROP_LEFT,
+    CROP_TOP,
+    CROP_W,
+    SIM_H,
+    SIM_W,
+)
+
 # device/mesh : x->forward, y-> right, z->down
 # view : x->right, y->down, z->forward
 device_frame_from_view_frame = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
@@ -36,12 +47,11 @@ def transform_points(points, offset, rotation):
 
 
 # plot trajectory on the images
-cam_offset = (0, -0.170, 0.105)  # right, down, forward in meter from center of mass. x is forward
-cam_rotation = (12, 0, 0)  # pitch, yaw, roll in deg
-FOCAL_MM = 0.8726  # mm
-sensor_width = 3.92  # mm
-sensor_height = 3.92 * (9 / 16)
-# F(mm) = F(pixels) * SensorWidth(mm) / ImageWidth (pixel)
+cam_offset = (0, -0.164, 0.105)  # right, down, forward in meter from center of mass. x is forward
+cam_rotation = (10.4, 0, 0)  # pitch, yaw, roll in deg
+FOCAL_MM = 0.87  # mm
+SENSOR_WIDTH = 3.691  # mm
+SENSOR_HEIGHT = 2.813
 # F(pixels) = F(mm) * ImageWidth (pixel) / SensorWidth(mm)
 
 
@@ -50,10 +60,8 @@ def plot_traj(image, traj, color=(0, 0, 255)):
 
     traj[:, 1] = -traj[:, 1]  # TODO fix this, or at least understand why its flipped?
 
-    W, H, _ = image.shape
-
-    F_x = FOCAL_MM * W / sensor_width
-    F_y = FOCAL_MM * H / sensor_height
+    F_x = FOCAL_MM * SIM_W / SENSOR_WIDTH
+    F_y = FOCAL_MM * SIM_H / SENSOR_HEIGHT
 
     traj_3d = np.pad(traj, (0, 1))  # add z = 0
     traj_3d = np.einsum("jk,ik->ij", view_frame_from_device_frame, traj_3d)
@@ -63,19 +71,34 @@ def plot_traj(image, traj, color=(0, 0, 255)):
     traj_cam = transform_points(traj_3d, cam_offset, cam_rotation)
 
     # Compute the camera matrix (assuming square pixels and no skew)
-    camera_matrix = torch.tensor([[F_x, 0, W / 2], [0, F_y, H / 2], [0, 0, 1]])
+    camera_matrix = torch.tensor(
+        [[F_x, 0, SIM_W * CENTER_X], [0, F_y, SIM_H * CENTER_Y], [0, 0, 1]]
+    )
 
-    # Project the points onto the image plane
+    # Project the points onto the (uncropped) image plane
     proj_points = project_points(traj_cam, camera_matrix)
 
+    # Distort points w/ D
+    # TODO
+
+    # crop the projected points
+    proj_points[:, 0] -= CROP_LEFT
+    proj_points[:, 1] -= CROP_TOP
+
+    # resize the projected points to fit the current image size
+    w, h, _ = image.shape
+    resize_scale_x = w / CROP_W
+    resize_scale_y = h / CROP_H
+    proj_points[:, 0] *= resize_scale_x
+    proj_points[:, 1] *= resize_scale_y
+
     # only keep points inside the frame
-    valid_x = np.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= W)
-    valid_y = np.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= H)
-
+    valid_x = np.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= w)
+    valid_y = np.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= h)
     valid_points = np.logical_and(valid_x, valid_y)
-
     proj_points = proj_points[valid_points]
 
+    # plot points on the image
     for point in proj_points:
         x, y = int(point[0].item()), int(point[1].item())
         cv2.circle(image, (x, y), radius=2, color=color, thickness=-1)
