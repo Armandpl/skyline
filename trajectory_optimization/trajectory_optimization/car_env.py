@@ -61,9 +61,8 @@ class CarRacing(gym.Env):
                 high=np.array([+max_steer_rad]).astype(np.float32),
             )
 
-        self.track = Track(
-            filepath=data_dir / track, obstacles_filepath=data_dir / track_obstacles
-        )
+        obstacle_path = data_dir / track_obstacles if track_obstacles is not None else None
+        self.track = Track(filepath=data_dir / track, obstacles_filepath=obstacle_path)
 
         # add a lidar for obstacles if there obstacles on the track
         # nb_rays + 1 if no obstacles, nb_rays * 2 + 1 if obstacles
