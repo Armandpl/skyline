@@ -9,6 +9,7 @@ Run `python train --cfg job` to print and debug your config.
 # Note about designing tracks in Fusion360 to export as dxf
 
 Polyline are easier to parse from dxf files because they don't require matching the start and end of lines and arcs. However, there is no polyline tool in Fusion360, the trick is to create a polygon and delete it's center constraint, then you can freely move the polygon points.
+Second trick to make polylines in f360 is to extrude the sketch and then project the body onto another sketch.
 
 # Ressources
 
