@@ -1,4 +1,3 @@
-# copy paste into blender
 import random
 
 import bpy
@@ -40,7 +39,6 @@ def plot_line(filepath, name):
 
     # Assign the material to the curve
     # curve_object.data.materials.append(material)
-    # do this by hand, else it creates a new material each time we run
 
     # flatten the tube, make it a strip
     curve_object.scale = (1, 1, 0.01)
@@ -50,93 +48,54 @@ def plot_line(filepath, name):
 # plot_line("/Users/armandpl/Dev/skyline/trajectory_optimization/notebooks/outer.txt", "outer")
 
 
-def create_animation(traj_path):
+def create_augmentations(traj_path):
     traj = np.loadtxt(traj_path)  # [x, y, yaw]
-
-    # Assume you have lists of car positions and orientations
-    car_positions = traj[:, 0:2]  # List of Vector((x, y)) for each frame
-    car_positions = np.pad(car_positions, ((0, 0), (0, 1)))  # add z=0
-    car_orientations = traj[:, 2].reshape(-1, 1)  # List of Euler(yaw) for each frame
-    # car_orientations = np.radians(car_orientations)
-    car_orientations = np.pad(car_orientations, ((0, 0), (2, 0)))  # add pitch = 0, roll = 0
     end_of_sequence = traj[:, -1]
 
-    # Camera offset from car
-    camera_offset_position = mathutils.Vector((0.105, 0, 0.170))  # x, y, z
-    camera_offset_rotation = mathutils.Euler(
-        (np.radians(90) + np.radians(-12), np.radians(0), np.radians(-90))
-    )
-
-    # Create a new camera object
-    bpy.ops.object.camera_add(location=(0, 0, 0))
-    camera = bpy.context.object
-
-    # Define camera FOV
-    camera_fov = np.radians(132)
-    camera.data.lens_unit = "FOV"
-    camera.data.angle = camera_fov  # ~= 0.87 mm not working for some reason?
-    camera.data.sensor_fit = "HORIZONTAL"
-    camera.data.sensor_width = 3.92
-
-    # Set camera to be the active camera
-    bpy.context.scene.camera = camera
-
     # Make sure you have as many frames as you have positions and orientations
-    bpy.context.scene.frame_end = len(car_positions)
+    bpy.context.scene.frame_end = traj.shape[0]
 
-    # TODO select relevant objects once
-    # delete all keyframes
+    # select relevant objects here
+    ground_1 = bpy.data.objects["ground_1"]
+    ground_2 = bpy.data.objects["ground_2"]
+    ground_2_material = bpy.data.materials["ground_2_material"]
+    sun_light = bpy.data.lights["Sun"]
+    line_material = bpy.data.materials["line_material"]
 
     # Iterate over each frame
-    for frame in range(1, len(car_positions)):
-        # Set the current frame
-        bpy.context.scene.frame_set(frame)
-
-        # Create rotation matrix from car's orientation
-        car_rot_matrix = mathutils.Matrix.Rotation(
-            car_orientations[frame][2], 4, "Z"
-        )  # 4 for 4x4 matrix, 'Z' for rotation about Z-axis
-
-        # Transform camera offset from car's coordinate frame to world coordinate frame
-        camera_offset_position_world = car_rot_matrix @ camera_offset_position
-
-        # Compute camera position and rotation based on car's data and transformed offset
-        camera.location = car_positions[frame] + camera_offset_position_world
-        camera.rotation_euler = car_orientations[frame] + camera_offset_rotation
-
-        # Add keyframes for these properties
-        camera.keyframe_insert(data_path="location", frame=frame)
-        camera.keyframe_insert(data_path="rotation_euler", frame=frame)
+    for frame in range(1, traj.shape[0]):
+        if frame % 1000 == 0:
+            print(f"{frame} / {traj.shape[0]}")
 
         # Augmentations!
         if end_of_sequence[frame - 1]:
+            # Set the current frame
+            bpy.context.scene.frame_set(frame)
+
             # Ground augmentation
-            ground_1 = bpy.data.objects["ground_1"]
-            ground_2 = bpy.data.objects["ground_2"]
             ground_1.hide_render = True
             ground_2.hide_render = True
-
-            ground_2_material = bpy.data.materials["ground_2_material"]
-            ground_2_material.keyframe_insert(
-                data_path="diffuse_color", frame=frame - 1
-            )  # keyframe
-            grey_value = random.uniform(0, 0.5)  # light grey to dark grey
-            random_grey = [grey_value, grey_value, grey_value]  # RGB
-            ground_2_material.diffuse_color = random_grey + [1.0]  # Add alpha channel
-            ground_2_material.keyframe_insert(data_path="diffuse_color", frame=frame)  # keyframe
 
             # randomly show either ground_1 or ground_2
             if random.random() < 0.5:
                 ground_1.hide_render = False
             else:
                 ground_2.hide_render = False
+                ground_2_material.keyframe_insert(
+                    data_path="diffuse_color", frame=frame - 1
+                )  # keyframe
+                grey_value = random.uniform(0, 0.5)  # light grey to dark grey
+                random_grey = [grey_value, grey_value, grey_value]  # RGB
+                ground_2_material.diffuse_color = random_grey + [1.0]  # Add alpha channel
+                ground_2_material.keyframe_insert(
+                    data_path="diffuse_color", frame=frame
+                )  # keyframe
 
             # Insert keyframes for the objects' visibility
             ground_1.keyframe_insert(data_path="hide_render", frame=frame)
             ground_2.keyframe_insert(data_path="hide_render", frame=frame)
 
             # Light augmentation
-            sun_light = bpy.data.lights["Sun"]
             sun_light.keyframe_insert(data_path="energy", frame=frame - 1)
             sun_light.keyframe_insert(data_path="color", frame=frame - 1)
             color_options = [
@@ -155,11 +114,14 @@ def create_animation(traj_path):
             sun_light.keyframe_insert(data_path="color", frame=frame)
 
             # Line augmentation
-            line_material = bpy.data.materials["line_material"]
+
             line_material.keyframe_insert(data_path="diffuse_color", frame=frame - 1)  # keyframe
-            base_color = random.uniform(
-                0.75, 1.25
-            )  # This will result in a range of colors around white/beige
+            if random.random() > 0.5:
+                base_color = random.uniform(
+                    0.75, 1.25
+                )  # This will result in a range of colors around white/beige
+            else:
+                base_color = 0  # black lines
             line_material.diffuse_color = [
                 base_color,
                 base_color,
@@ -169,4 +131,100 @@ def create_animation(traj_path):
             line_material.keyframe_insert(data_path="diffuse_color", frame=frame)  # keyframe
 
 
-create_animation("/Users/armandpl/Dev/skyline/trajectory_optimization/data/rl_trajectories.txt")
+def animate_camera(traj_path):
+    traj = np.loadtxt(traj_path)  # [x, y, yaw, speed, delta, speed_command, end_of_seq]
+
+    # Assume you have lists of car positions and orientations
+    car_positions = traj[:, 0:2]  # List of Vector((x, y)) for each frame
+    car_positions = np.pad(car_positions, ((0, 0), (0, 1)))  # add z=0
+    car_orientations = traj[:, 2].reshape(-1, 1)  # List of Euler(yaw) for each frame
+    # car_orientations = np.radians(car_orientations)
+    car_orientations = np.pad(car_orientations, ((0, 0), (2, 0)))  # add pitch = 0, roll = 0
+    end_of_sequence = traj[:, -1]
+
+    # Camera offset from car
+    camera_offset_position = mathutils.Vector((0.105, 0, 0.164))  # x, y, z
+    camera_offset_rotation = mathutils.Euler(
+        (np.radians(90) + np.radians(-10.4), np.radians(0), np.radians(-90))
+    )
+
+    camera = bpy.data.objects["Camera"]
+    # Create two empty lists to store final camera positions and rotations
+    camera_positions_world = []
+    camera_orientations_world = []
+
+    # Iterate over each frame
+    for frame in range(len(car_positions)):
+        # Create rotation matrix from car's orientation
+        car_rot_matrix = mathutils.Matrix.Rotation(
+            car_orientations[frame][2], 4, "Z"
+        )  # 4 for 4x4 matrix, 'Z' for rotation about Z-axis
+
+        # Transform camera offset from car's coordinate frame to world coordinate frame
+        camera_offset_position_world = car_rot_matrix @ camera_offset_position
+
+        # Compute camera position and rotation based on car's data and transformed offset
+        camera_positions_world.append(car_positions[frame] + camera_offset_position_world)
+        camera_orientations_world.append(car_orientations[frame] + camera_offset_rotation)
+
+    print("done creating pos/rot")
+
+    # Prepare your data: flatten the list of camera positions and orientations
+    frames = range(1, len(camera_positions_world))
+    flattened_positions = [
+        [item[i] for item in camera_positions_world] for i in range(3)
+    ]  # Flatten each component separately
+    flattened_orientations = [
+        [item[i] for item in camera_orientations_world] for i in range(3)
+    ]  # Flatten each component separately
+
+    # Create actions
+    location_action = bpy.data.actions.new("LocationAction")
+    rotation_action = bpy.data.actions.new("RotationAction")
+
+    # Create fcurves for each component of location and rotation
+    for index in range(
+        3
+    ):  # There are 3 components for location (x, y, z) and rotation (roll, pitch, yaw)
+        location_fcurve = location_action.fcurves.new("location", index=index)
+        rotation_fcurve = rotation_action.fcurves.new("rotation_euler", index=index)
+        location_fcurve.keyframe_points.add(count=len(frames))
+        rotation_fcurve.keyframe_points.add(count=len(frames))
+
+        # Prepare flattened data for this component
+        flattened_positions_component = [
+            x for co in zip(frames, flattened_positions[index]) for x in co
+        ]
+        flattened_orientations_component = [
+            x for co in zip(frames, flattened_orientations[index]) for x in co
+        ]
+
+        # Populate the keyframe points
+        location_fcurve.keyframe_points.foreach_set("co", flattened_positions_component)
+        rotation_fcurve.keyframe_points.foreach_set("co", flattened_orientations_component)
+        location_fcurve.update()
+        rotation_fcurve.update()
+    print("done creating fcurves")
+
+    # Assign the actions to the camera
+    camera.animation_data_create()
+    camera.animation_data.action = location_action
+    # Add the rotation fcurves to the existing action
+    for index in range(3):
+        rotation_fcurve = camera.animation_data.action.fcurves.new("rotation_euler", index=index)
+        flattened_orientations_component = [
+            x for co in zip(frames, flattened_orientations[index]) for x in co
+        ]
+        rotation_fcurve.keyframe_points.add(count=len(frames))
+        rotation_fcurve.keyframe_points.foreach_set("co", flattened_orientations_component)
+        rotation_fcurve.update()
+    print("done done")
+
+
+# create_animation("/Users/armandpl/Dev/skyline/trajectory_optimization/data/fixed_speed/trajectories.txt")
+animate_camera(
+    "/Users/armandpl/Dev/skyline/trajectory_optimization/data/fixed_speed/trajectories.txt"
+)
+create_augmentations(
+    "/Users/armandpl/Dev/skyline/trajectory_optimization/data/fixed_speed/trajectories.txt"
+)
