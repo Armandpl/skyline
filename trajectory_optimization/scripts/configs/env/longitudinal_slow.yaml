@@ -1,0 +1,7 @@
+defaults: # we're extending base env
+  - base_env
+  - override car_config: slow # selecting the slow.yaml car config
+
+track_obstacles: "tracks/vivatech_2023_obstacles_2.dxf"
+fixed_speed: null # allow longitudinal control
+max_wheels_out: 4 # only enforce center of mass inside

@@ -1,0 +1,24 @@
+_target_: trajectory_optimization.bicycle_model.Car
+model:
+  _target_: trajectory_optimization.bicycle_model.LinearTireModel
+  m: 1.873
+  L_f: 0.14 # len to front
+  L_r: 0.125 # len to rear
+  load_f: 8.7 # changes when braking/accelerating, can we/should we model this?
+  load_r: 9.67
+  C_x: 103.9400 # still need to figure this one out
+  C_alpha: 56.4000 # and this one
+  I_z: 0.0558 # I = 0.5 * m * r^2 = 0.5 * 0.0283 * 0.033^2 = 0.00001541, basically zero
+  mu_s: 1.36
+  mu_k: 1.96
+  # having a low I_z makes it difficult to integrate the accel quickly, leave the old value?
+  # wheel_dia: 0.066 not used?
+  # wheel_w: 0.025 not used?
+
+# additionnal params
+max_steer: 20 # max steer in deg, measured on the car with a level
+min_speed: 0.85 # no less else integrating state is slow
+max_speed: 5.5 # 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
+body_w: 0.19 # car width in meters
+max_steering_rate: 130 # deg/s, measured by recording vid and steering left to right
+max_accel: 25 # m/s^2, measured about ~28 by strapping my phone to the car
