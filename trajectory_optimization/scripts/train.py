@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import hydra
 import wandb
@@ -55,6 +56,12 @@ def main(cfg: DictConfig):
         use_sde=cfg.use_sde,  # make sense since we're simulating a robot
         gamma=cfg.gamma,  # if we discount future rewards too much the car doesn't care about crashing in the future
     )
+
+    if cfg.agent_artifact is not None:
+        logging.info(f"Loading models weights from {cfg.agent_artifact}")
+        artifact = wandb.use_artifact(cfg.agent_artifact)
+        artifact_dir = Path(artifact.download())
+        model.set_parameters(artifact_dir / "model.zip")
 
     try:
         # Train the agent and display a progress bar
