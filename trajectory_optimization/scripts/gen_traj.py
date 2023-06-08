@@ -1,18 +1,18 @@
 import numpy as np
 import wandb
-from stable_baselines3 import SAC
 
-from trajectory_optimization import data_dir
 from trajectory_optimization.utils import load_model_and_instantiate_env
 
 if __name__ == "__main__":
-    NB_STEPS = 10_000
-    TRAJ_LEN = 45
+    NB_STEPS = 100_000
+    TRAJ_LEN = 50
     NB_EPISODES = NB_STEPS // TRAJ_LEN
 
     run = wandb.init(project="skyline", job_type="gen_traj")
     model, env = load_model_and_instantiate_env(
-        artifact_alias="agent:latest", time_limit=TRAJ_LEN, max_wheels_out=4, render_mode="human"
+        artifact_alias="agent:v17",
+        time_limit=TRAJ_LEN,
+        max_wheels_out=4,  # render_mode="human"
     )
 
     # trajectory at each step should contain
@@ -25,29 +25,38 @@ if __name__ == "__main__":
         if obs is None or (truncated or terminated):
             obs, _ = env.reset()
             if truncated:  # means the car successfully ran TRAJ_LEN steps without crashing
+                current_traj[-1][-1] = True  # set the last traj_step to be done.
+                # the done flag is offset by one, meaning its actually the next step that's done
+                # it shouldn't be a problem for what we do + this is so the action isn't offset
                 trajectories.append(current_traj)
                 print(f"{len(trajectories)} / {NB_EPISODES}")
             current_traj = []
 
         action, _states = model.predict([obs], deterministic=True)
         action = action[0]  # action[0] bc model was trained on vec env
-        obs, reward, terminated, truncated, info = env.step(action)
 
         car = env.unwrapped.car
-        rescaled_action = info["rescaled_action"]
-        done = terminated or truncated
+        # rescaled_action = info["rescaled_action"]
+        # done = terminated or truncated
         traj_step = [
             car.pos_x,
             car.pos_y,
             car.yaw,
             car.speed,
-            rescaled_action[
+            # rescaled_action[
+            #     0
+            # ],
+            action[
                 0
-            ],  # note this is the action that caused this state, not the action to take for this state!
-            None,  # no speed command bc fixed speed for now
-            done,
+            ],  # let's just grab the scaled action, could later rescale it (if we logged the output traj to wandb)
+            # by fetching config that produced the agent
+            # ultimately rn we want to train a nn to predict this value so -1, 1 will do
+            # this script is a lil messy and a bit specific but eh
+            -1,  # no speed command bc fixed speed for now
+            False,
         ]
         current_traj.append(traj_step)
+        obs, reward, terminated, truncated, info = env.step(action)
 
     trajectories = np.array(trajectories)
     # Reshape the 3D trajectories (n_traj, n_steps, traj_step_len) array to a 2D array (n_traj*n_step, traj_step_len)
