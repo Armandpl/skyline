@@ -49,6 +49,8 @@ class CarRacing(gym.Env):
         self.max_wheels_out = max_wheels_out
         self.max_lidar_distance = max_lidar_distance
 
+        self.metadata["render_fps"] = fps
+
         max_steer_rad = np.deg2rad(car_config.max_steer)
         if self.fixed_speed is None:
             self.action_space = spaces.Box(
