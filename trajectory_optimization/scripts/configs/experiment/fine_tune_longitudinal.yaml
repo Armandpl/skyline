@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  # use this to override using files
+  - override /env: longitudinal
+
+# use this to override specific params here
+# maybe not the best practice though?
+# maybe having a fixed_speed_env.yaml config would be better
+# and then in those experiment file we just pick different modules?
+env:
+  max_wheels_out: 0
+  track_obstacles: null
+  car_config:
+    max_steer: 22.3
+    max_speed: 3.5
+    body_w: 0.21 # make car slightly wider (+2cm) to take body into account
+
+max_steps: 250_000
+agent_artifact: "agent:v16"
