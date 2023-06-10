@@ -41,12 +41,13 @@ class HistoryWrapper(gym.Wrapper):
         obs = np.concatenate([obs, action])
         self.history.append(obs)
         obs = np.array(self.history)
-        obs = obs.flatten()
 
         if self.use_continuity_cost:
             continuity_cost = self._continuity_cost(obs)
             reward -= continuity_cost
             info["continuity_cost"] = continuity_cost
+
+        obs = obs.flatten()
 
         return obs, reward, terminated, truncated, info
 

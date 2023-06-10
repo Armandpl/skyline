@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
     )
 
     env = hydra.utils.instantiate(cfg.env, _recursive_=False)
-    vec_env = DummyVecEnv([lambda: wrap_env(env)])
+    vec_env = DummyVecEnv([lambda: wrap_env(env, cfg.wrappers)])
 
     # Record the video starting at the first step
     video_freq_steps = cfg.max_steps // cfg.video_freq

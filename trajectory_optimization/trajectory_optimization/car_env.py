@@ -72,8 +72,8 @@ class CarRacing(gym.Env):
         low_obs = np.array([*[0] * total_nb_rays, car_config.min_speed])
         high_obs = np.array([*[max_lidar_distance] * total_nb_rays, car_config.max_speed])
         self.observation_space = spaces.Box(
-            low=low_obs,
-            high=high_obs,
+            low=low_obs.astype(np.float32),
+            high=high_obs.astype(np.float32),
         )
 
         self.rays = np.linspace(-90, 90, nb_rays)

@@ -13,12 +13,12 @@ from stable_baselines3.sac import SAC
 from trajectory_optimization.wrappers import HistoryWrapper, RescaleWrapper
 
 
-def wrap_env(env):
-    """hardcoded function to wrap and check env could configure using hydra instead but don't need
-    it now useful if we want to use different wrappers at different times."""
-    env = RescaleWrapper(env)
-    check_env(env)
-    env = HistoryWrapper(env=env, steps=2, use_continuity_cost=False)
+def wrap_env(env, wrappers_configs):
+    # if I understand correctly they should be instantiated in the same order as in the config file
+    # TODO need to check if they are kept in the same order in wandb also?
+    for conf in wrappers_configs.values():
+        env = hydra.utils.instantiate(conf, env=env)
+
     env = Monitor(env)
     check_env(env)
     return env
@@ -29,10 +29,12 @@ def load_model_and_instantiate_env(artifact_alias="agent:latest", time_limit=Non
     artifact_dir = Path(artifact.download())
     model = SAC.load(artifact_dir / "model.zip")
 
-    env_config = artifact.logged_by().config["env"]
+    producer_run_config = artifact.logged_by().config
+    env_config = producer_run_config["env"]
+    wrappers_config = producer_run_config["wrappers"]
     env = hydra.utils.instantiate(env_config, **env_kwargs, _recursive_=False)
     make_env = (
-        lambda: wrap_env(env)
+        lambda: wrap_env(env, wrappers_config)
         if time_limit is None
         else TimeLimit(wrap_env(env), max_episode_steps=time_limit)
     )

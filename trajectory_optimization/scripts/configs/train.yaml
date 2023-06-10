@@ -1,6 +1,7 @@
 defaults:
   - _self_
   - env: base_env.yaml
+  - wrappers: base_wrappers.yaml
 
 # train
 max_steps: 2_000_000

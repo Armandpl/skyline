@@ -1,0 +1,7 @@
+rescale:
+  _target_: trajectory_optimization.wrappers.RescaleWrapper
+
+history:
+  _target_: trajectory_optimization.wrappers.HistoryWrapper
+  steps: 2
+  use_continuity_cost: False
