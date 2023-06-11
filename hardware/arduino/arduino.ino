@@ -13,6 +13,12 @@ const float t_ms = 1000/freq;
 
 volatile unsigned long last_time = 0;
 volatile float speed = 0;
+volatile float ema_speed = 0;
+
+// TODO protocol to send this value from the configs on the jetson?
+// or maybe to the filter on the jetson?
+volatile float alpha = 0.5;  // Adjust this value to control the ema filter strength
+
 
 // .5s, TODO compute it from the min speed of the car
 // if more than theshold between two interrupts, the car is probably stopped
@@ -43,9 +49,10 @@ void loop() {
   // if so set the speed to zero, means the car is stopped
   if ((current_time - last_interrupt_time) > timeout_us) {
     speed = 0;
+    ema_speed = 0;
   }
 
-  Serial.println(speed);
+  Serial.println(ema_speed);
 }
 
 void incrementCounter() {
@@ -60,8 +67,13 @@ void incrementCounter() {
     float wheel_rotations = 1 / tick_per_wheel_rotation;
     float metters = wheel_rotations * wheel_perimeter_m;
     speed = metters / dt_s;
+    updateEMA();
   }
 
   last_time = current_time;
   last_interrupt_time = current_time; // Save the time of the last interrupt
+}
+
+void updateEMA() {
+  ema_speed = alpha * speed + (1 - alpha) * ema_speed;
 }
