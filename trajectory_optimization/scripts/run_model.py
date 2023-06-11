@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import wandb
@@ -5,12 +7,18 @@ from matplotlib.colors import TwoSlopeNorm
 
 from trajectory_optimization.utils import load_model_and_instantiate_env
 
-if __name__ == "__main__":
+
+def main(agent_artifact):
     run = wandb.init(project="skyline", job_type="use_agent")
 
     # TODO maybe add option to load local model
     model, env = load_model_and_instantiate_env(
-        artifact_alias="agent:latest", time_limit=None, render_mode="human", max_wheels_out=4
+        artifact_alias=agent_artifact,
+        time_limit=None,
+        render_mode="human",
+        max_wheels_out=4,
+        track="tracks/vivatech_2023.dxf",
+        random_init=False,
     )
 
     trajectory = []
@@ -69,3 +77,10 @@ if __name__ == "__main__":
 
     env.close()
     run.finish()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("please provide an artifact alias")
+    else:
+        main(sys.argv[1])
