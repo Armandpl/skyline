@@ -1,1 +1,7 @@
 sub_topics: ["SpeedReading", "SpeedCommand"]
+p: 0.05
+i: 0.01
+d: 0.005
+max_throttle: 0.5
+min_throttle: -0.5
+# fallback_throttle: 0.25
