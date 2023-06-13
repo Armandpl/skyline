@@ -1,6 +1,7 @@
 from racecar_inference.proto.protocol_pb2 import (
     SpeedCommand,
     SpeedReading,
+    SteeringCommand,
     ThrottleCommand,
 )
 
@@ -11,6 +12,7 @@ int_topic_to_message_class = {
     2: SpeedReading,
     3: SpeedCommand,
     4: ThrottleCommand,
+    5: SteeringCommand,
 }
 
 # just reverse the dict

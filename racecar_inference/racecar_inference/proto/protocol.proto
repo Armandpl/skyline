@@ -14,8 +14,12 @@ message SpeedCommand {
     float desired_speed = 1;
 }
 
-// ThrottleCommand message sends the command to the car, a float value between 0 and 1.
+// ThrottleCommand message sends the command to the car, a float value between -1 and 1.
 message ThrottleCommand {
-    // Throttle command value, a float between 0 and 1.
     float throttle = 1;
+}
+
+// SteeringCommand message sends the command to the car, a float value between -1 and 1.
+message SteeringCommand {
+    float steering = 1;
 }
