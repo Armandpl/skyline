@@ -1,8 +1,11 @@
 # Inference code
 
 # Useful commands
-restart camera daemon
-list serial devices
+- restart camera daemon `sudo systemctl restart nvargus-daemon`
+- list serial devices `ls /dev/serial/by-path/` or `dmesg | grep tty`
+- serial permissions quickfix: `sudo chmod 666 /dev/ttyACM0`
+- sort impots and lint (manually bc pre-commit doesn't work out of the box on pytho3.6): `black my-package && isort --profile black my-package`
+
 
 # Dependencies
 Ok so I'm not sure how to handle dependencies on embedded systems running Python? For now a shitty requirements.txt and notes on how to install stuff is what we have.  
