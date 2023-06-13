@@ -1,10 +1,12 @@
-from racecar_inference import BUS_PUB_ADDR
+import logging
+import sys
+from time import time_ns
+
 import zmq
 from mcap_protobuf.writer import Writer
-from time import time_ns
+
+from racecar_inference import BUS_PUB_ADDR
 from racecar_inference.proto.messages import int_topic_to_message_class
-import sys
-import logging
 
 
 # TODO make this a module instead?
@@ -23,7 +25,8 @@ def main(fpath):
         sub_socket.connect(BUS_PUB_ADDR)
 
         # sub to every topic
-        sub_socket.setsockopt(zmq.SUBSCRIBE, b'')
+        sub_socket.setsockopt(zmq.SUBSCRIBE, b"")
+        print("bus OK")
 
         while True:
             topic, serialized_message = sub_socket.recv_multipart()
@@ -33,8 +36,6 @@ def main(fpath):
                 message_type = int_topic_to_message_class[topic]
                 message = message_type()
                 message.ParseFromString(serialized_message)
-
-                print(f"logger received {message}")
 
                 mcap_writer.write_message(
                     topic=message_type.__name__,
@@ -49,6 +50,7 @@ def main(fpath):
         ctx.term()
         mcap_writer.finish()
         f.close()
+        print("file written and closed")
 
 
 # should be run in venv with python>=3.7
