@@ -36,7 +36,7 @@ def load_model_and_instantiate_env(artifact_alias="agent:latest", time_limit=Non
     make_env = (
         lambda: wrap_env(env, wrappers_config)
         if time_limit is None
-        else TimeLimit(wrap_env(env), max_episode_steps=time_limit)
+        else TimeLimit(wrap_env(env, wrappers_config), max_episode_steps=time_limit)
     )
 
     return model, make_env()
