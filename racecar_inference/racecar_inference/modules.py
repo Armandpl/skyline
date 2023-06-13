@@ -270,6 +270,10 @@ class CarModule(BaseModule):
     def init(self):
         self.car = None
 
+    def handle_quit(self):
+        super().handle_quit()
+        del self.car 
+
     def reload(self):
         changed_keys = super().reload()
 
@@ -291,22 +295,21 @@ class CarModule(BaseModule):
                 self.car.steering = message.steering
 
 
-# TODO
-# properly close camera?
-# check jetracer modules
 class ControlModule(BaseModule):
     def init(self):
         self.camera = None
 
-        # import torch here?
-        # import torch
-        # from torch2trt import TRTModule
-
-        # cuda warmup?
+        # only do .cuda() in this process else things hang 
+        # there seems to be a weird interaction between torch and processes
         self.mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
         self.std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
 
         self.log("info", "init done")
+
+    def handle_quit(self):
+        super.handle_quit()
+        if self.camera is not None:
+            self.camera.cap.release()
 
     def load_model(self, path):
         self.log("info", f"loading model {path}")
@@ -325,12 +328,11 @@ class ControlModule(BaseModule):
 
         # Move channel dimension to the beginning
         image = image.permute(2, 0, 1)
-        # test = transforms.functional.to_pil_image(image)
-        # test.save("test_pp.jpg")
 
-        # image = transforms.functional.resize(image, (224, 224))
+        # Copy to cuda
         image = image.cuda().half()
 
+        # Normalize
         image.sub_(self.mean[:, None, None]).div_(self.std[:, None, None])
 
         return image[None, ...]
