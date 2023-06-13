@@ -1,9 +1,11 @@
-from .camera import Camera
 import atexit
+import threading
+
 import cv2
 import numpy as np
-import threading
 import traitlets
+
+from .camera import Camera
 
 
 class CSICamera(Camera):

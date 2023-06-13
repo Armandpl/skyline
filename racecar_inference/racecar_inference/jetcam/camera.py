@@ -1,6 +1,7 @@
-import traitlets
 import threading
+
 import numpy as np
+import traitlets
 
 
 class Camera(traitlets.HasTraits):

@@ -1,7 +1,9 @@
-import multiprocessing
-from racecar_inference import BUS_PUB_ADDR, BUS_SUB_ADDR
 import logging
+import multiprocessing
+
 import zmq
+
+from racecar_inference import BUS_PUB_ADDR, BUS_SUB_ADDR
 
 BROKER_CTRL_ADDR = "ipc:///tmp/broker.ipc"
 
