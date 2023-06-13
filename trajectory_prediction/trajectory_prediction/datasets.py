@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torchvision
+import torchvision.transforms.functional as F
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 
@@ -76,11 +77,12 @@ class TrajectoryDataset(Dataset):
 
         # Load image
         img_idx = real_idx + 1  # shifted by one
-        order_of_magnitude = math.floor(
-            math.log10(len(self.trajectory_data))
-        )  # how many zeros in image names
-        img_pth = self.image_dir / f"{str(img_idx).zfill(order_of_magnitude)}.jpg"
+        # order_of_magnitude = math.floor(
+        #     math.log10(len(self.trajectory_data))
+        # )  # how many zeros in image names
+        img_pth = self.image_dir / f"{str(img_idx).zfill(4)}.jpg"
         image = read_image(str(img_pth))
+        image = F.convert_image_dtype(image, torch.float)
         if self.transform:
             image = self.transform(image)
 
@@ -97,9 +99,13 @@ class TrajectoryDataset(Dataset):
         relative_positions = car_positions - car_positions[0]  # make relative to current position
         rotated_positions = rotate_trajectory(relative_positions, yaw)
 
+        # get the steering
+        steering = trajectory_data[:, 4].reshape(-1, 1)
+        trajectory = np.column_stack((rotated_positions, steering))
+
         return {
             "image": image,
-            "trajectory": rotated_positions.flatten().astype(np.float32),  # (N*2)
+            "trajectory": trajectory.flatten().astype(np.float32),  # (N*2)
             "speed": trajectory_data[0, 3].astype(
                 np.float32
             ),  # between 0 and 7, so its fine if not normalized?
@@ -120,6 +126,7 @@ class TestTrajectoryDataset(Dataset):
     def __getitem__(self, idx):
         img_pth = self.paths[idx]
         image = read_image(str(img_pth))
+        image = F.convert_image_dtype(image, torch.float)
         if self.transform:
             image = self.transform(image)
 
