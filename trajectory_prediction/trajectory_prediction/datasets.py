@@ -103,6 +103,9 @@ class TrajectoryDataset(Dataset):
         steering = trajectory_data[:, 4].reshape(-1, 1)
         trajectory = np.column_stack((rotated_positions, steering))
 
+        # TODO return steering and throttle as different keys
+        # do the hstack in the neural net instead?
+        # allows using this same code for steering only or steering + throttle
         return {
             "image": image,
             "trajectory": trajectory.flatten().astype(np.float32),  # (N*2)
