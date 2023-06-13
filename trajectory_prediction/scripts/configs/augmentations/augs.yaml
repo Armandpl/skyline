@@ -1,0 +1,24 @@
+base_transforms:
+  resize:
+    _target_: torchvision.transforms.Resize
+    size: [224, 224]
+    antialias: True
+  normalize:
+    _target_: torchvision.transforms.Normalize
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+augs_transforms:
+  resize:
+    _target_: torchvision.transforms.Resize
+    size: [224, 224]
+    antialias: True
+  color_jitter:
+    _target_: torchvision.transforms.ColorJitter
+    brightness: [0.6, 1.4] # 0 gives a black image, 1 gives the original image while 2 increases the brightness by a factor of 2
+    contrast: [0.6, 1.4] # 0 gives a solid gray image, 1 gives the original image while 2 increases the contrast by a factor of 2.
+    saturation: [0.6, 1.4] # 0 will give a black and white image, 1 will give the original image while 2 will enhance the saturation by a factor of 2.
+    hue: 0.1
+  normalize:
+    _target_: torchvision.transforms.Normalize
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]

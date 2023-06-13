@@ -1,0 +1,9 @@
+# @package _global_
+
+model:
+  out_scale: 2.0
+dataset:
+  train:
+    root_dir: "../../trajectory_optimization/data/fixed_4_100k"
+model_artifact_name: "model:v5"
+epochs: 7
