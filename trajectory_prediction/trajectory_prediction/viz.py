@@ -4,8 +4,6 @@ import torch
 from kornia.geometry.camera.perspective import project_points
 from matplotlib import pyplot as plt
 from scipy.spatial.transform import Rotation as R
-from torchvision.transforms.functional import to_pil_image
-from tqdm import trange
 
 from trajectory_prediction.camera import (
     CENTER_X,
@@ -57,6 +55,7 @@ SENSOR_HEIGHT = 2.813
 
 def plot_traj(image, traj, color=(0, 0, 255)):
     """traj (n ,2) x, y coordinates relative to car center of mass image is a cv2 image so WHC."""
+    traj = np.copy(traj)
 
     traj[:, 1] = -traj[:, 1]  # TODO fix this, or at least understand why its flipped?
 
@@ -93,12 +92,56 @@ def plot_traj(image, traj, color=(0, 0, 255)):
     proj_points[:, 1] *= resize_scale_y
 
     # only keep points inside the frame
-    valid_x = np.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= w)
-    valid_y = np.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= h)
-    valid_points = np.logical_and(valid_x, valid_y)
+    valid_x = torch.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= w)
+    valid_y = torch.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= h)
+    valid_points = torch.logical_and(valid_x, valid_y)
     proj_points = proj_points[valid_points]
 
     # plot points on the image
     for point in proj_points:
         x, y = int(point[0].item()), int(point[1].item())
         cv2.circle(image, (x, y), radius=2, color=color, thickness=-1)
+
+
+def make_vid_from_2d_traj(trajectory_array_1, trajectory_array_2=None):
+    # Initialize a list to store images
+    images = []
+
+    # Set up the figure and the axis
+    fig, ax = plt.subplots()
+    plt.axis("off")
+
+    for t in range(trajectory_array_1.shape[0]):
+        ax.clear()
+        ax.plot(trajectory_array_1[t, :, 1], trajectory_array_1[t, :, 0], "bo")
+
+        if trajectory_array_2 is not None:
+            ax.plot(trajectory_array_2[t, :, 1], trajectory_array_2[t, :, 0], "go")
+
+        min_x = min(
+            np.min(trajectory_array_1[:, :, 1]),
+            np.min(trajectory_array_2[:, :, 1] if trajectory_array_2 is not None else np.inf),
+        )
+        max_x = max(
+            np.max(trajectory_array_1[:, :, 1]),
+            np.max(trajectory_array_2[:, :, 1] if trajectory_array_2 is not None else -np.inf),
+        )
+
+        min_y = min(
+            np.min(trajectory_array_1[:, :, 0]),
+            np.min(trajectory_array_2[:, :, 0] if trajectory_array_2 is not None else np.inf),
+        )
+        max_y = max(
+            np.max(trajectory_array_1[:, :, 0]),
+            np.max(trajectory_array_2[:, :, 0] if trajectory_array_2 is not None else -np.inf),
+        )
+
+        ax.set_xlim([min_x, max_x])
+        ax.set_ylim([min_y, max_y])
+
+        fig.canvas.draw()
+        data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        images.append(data)
+
+    return np.array(images)
