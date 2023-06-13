@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     def quit_bus():
         # send termination signal to modules
-        pub_socket.send_multipart([(0).to_bytes(1, "big"), b""])
+        pub_socket.send((0).to_bytes(1, "big"))
         pub_socket.close()
 
         # send terminate to broker
@@ -65,6 +65,6 @@ if __name__ == "__main__":
             quit_bus()
             break
         elif cmd == 1:
-            pub_socket.send_multipart([(1).to_bytes(1, "big"), b""])
+            pub_socket.send((1).to_bytes(1, "big"))
 
     logging.info("all done")

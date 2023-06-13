@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     def quit_bus():
         # send termination signal to modules
-        pub_socket.send_multipart([(0).to_bytes(1, "big"), b""])
+        pub_socket.send((0).to_bytes(1, "big"))
         pub_socket.close()
 
         # send terminate to broker
@@ -56,14 +56,14 @@ if __name__ == "__main__":
             quit_bus()
             break
         elif cmd == 1:
-            pub_socket.send_multipart([(1).to_bytes(1, "big"), b""])
+            pub_socket.send((1).to_bytes(1, "big"))
         elif (
             cmd > 1 and cmd < 4
         ):  # make sure we don't send a launch command and send the car to mars
             msg = SpeedCommand(desired_speed=cmd)
             cmd_byte = 3
-            pub_socket.send_multipart(
-                [(cmd_byte).to_bytes(1, "big"), msg.SerializeToString()]
+            pub_socket.send(
+                (cmd_byte).to_bytes(1, "big") + msg.SerializeToString()
             )
 
     logging.info("all done")

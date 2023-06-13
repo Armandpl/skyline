@@ -29,6 +29,7 @@ from racecar_inference.proto.messages import (
 from racecar_inference.proto.protocol_pb2 import (
     SpeedCommand,
     SpeedReading,
+    FilteredSpeed,
     SteeringCommand,
     ThrottleCommand,
 )
@@ -93,6 +94,13 @@ class BaseModule(multiprocessing.Process):
         self.pub_socket = self.context.socket(zmq.PUB)
         self.sub_socket = self.context.socket(zmq.SUB)
 
+        # only handle the latest message
+        # TODO actually idk if that's a good idea?
+        # multiple modules might receive multiples messages at once
+        # e.g for the pid speed command and speed reading
+        # TODO maybe use a HWM of like 5, to make sure the modules don't choke that's it?
+        # self.pub_socket.setsockopt(zmq.CONFLATE, 1)
+
         self.pub_socket.connect(BUS_SUB_ADDR)
         self.sub_socket.connect(BUS_PUB_ADDR)
 
@@ -122,7 +130,9 @@ class BaseModule(multiprocessing.Process):
         serialized_message = (
             message.SerializeToString()
         )  # serialize to string actually outputs bytes
-        self.pub_socket.send_multipart([topic, serialized_message])
+        combined_message = topic + serialized_message  # Concatenate the bytestrings
+
+        self.pub_socket.send(combined_message)
 
     def receive(self, noblock=False):
         """
@@ -132,16 +142,25 @@ class BaseModule(multiprocessing.Process):
         topic, message = None, None
         try:
             if noblock:
-                topic, serialized_message = self.sub_socket.recv_multipart(
+                topic, serialized_message = self.sub_socket.recv(
                     flags=zmq.NOBLOCK
                 )
             else:
-                topic, serialized_message = self.sub_socket.recv_multipart()
+                topic, serialized_message = self.sub_socket.recv()
         except zmq.Again:
             pass
 
-        if topic is not None:
-            topic = self.decode_topic(topic)
+        message = None
+        try:
+            if noblock:
+                combined_message = self.sub_socket.recv(flags=zmq.NOBLOCK)
+            else:
+                combined_message = self.sub_socket.recv()
+        except zmq.Again:
+            pass
+
+        if combined_message:
+            topic = self.decode_topic(combined_message[0])  # Get the first byte
 
             # handle special commands
             if topic == 1:
@@ -149,6 +168,7 @@ class BaseModule(multiprocessing.Process):
             elif topic == 0:
                 self.handle_quit()
             else:
+                serialized_message = combined_message[1:]  # Get the rest of the message
                 message_type = int_topic_to_message_class[topic]
                 message = message_type()
                 message.ParseFromString(serialized_message)
@@ -245,6 +265,7 @@ class PidModule(BaseModule):
                 Ki=self.cfg.i,
                 Kd=self.cfg.d,
                 setpoint=0.0,
+                sample_time=None, # compute new value each time we call the pid
                 output_limits=(self.cfg.min_throttle, self.cfg.max_throttle),
             )
 
@@ -265,7 +286,23 @@ class PidModule(BaseModule):
                 self.publish(ThrottleCommand(throttle=throttle))
 
 
-# TODO handle quit del car
+class SpeedFilterModule(BaseModule):
+    def init(self):
+        self.ema = None
+
+    def loop(self):
+        while self.running:
+            message = self.receive()
+
+            if isinstance(message, SpeedReading):
+                if self.ema is None:
+                    self.ema = message.speed
+                else:
+                    self.ema = self.cfg.alpha * message.speed + (1 - self.cfg.alpha) * self.ema
+                
+                self.publish(FilteredSpeed(speed=self.ema))
+
+
 class CarModule(BaseModule):
     def init(self):
         self.car = None

@@ -3,6 +3,7 @@ from racecar_inference.proto.protocol_pb2 import (
     SpeedReading,
     SteeringCommand,
     ThrottleCommand,
+    FilteredSpeed,
 )
 
 # map message types to int values to send as a single byte on the bus
@@ -13,6 +14,7 @@ int_topic_to_message_class = {
     3: SpeedCommand,
     4: ThrottleCommand,
     5: SteeringCommand,
+    6: FilteredSpeed,
 }
 
 # just reverse the dict

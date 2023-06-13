@@ -4,7 +4,11 @@ package car;
 
 // SpeedReading message represents the speed reading of the car from a sensor.
 message SpeedReading {
-    // Speed of the car, a float value between 0 and 7 (m/s).
+    // Speed of the car, a float value between 0 and ~7 (m/s).
+    float speed = 1;
+}
+
+message FilteredSpeed{
     float speed = 1;
 }
 
