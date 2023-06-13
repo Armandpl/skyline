@@ -11,17 +11,14 @@ from racecar_inference.proto.protocol_pb2 import SpeedCommand
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 
-    b = Broker()
-    b.start()
+    modules = []
+    modules.append(Broker())
+    modules.append(PidModule("configs/pid.yaml"))
+    modules.append(SpeedSensorModule("configs/speed_sensor.yaml"))
+    modules.append(CarModule("configs/car.yaml"))
 
-    pid_module = PidModule("configs/pid.yaml")
-    pid_module.start()
-
-    speed_sensor_module = SpeedSensorModule("configs/speed_sensor.yaml")
-    speed_sensor_module.start()
-
-    car_module = CarModule("configs/car.yaml")
-    car_module.start()
+    for m in modules:
+        m.start()
 
     # setup zmq to be able to send commands to the bus
     ctx = zmq.Context()
@@ -47,9 +44,8 @@ if __name__ == "__main__":
         ctx.term()
 
         # wait for processes to join
-        b.join()
-        speed_sensor_module.join()
-        pid_module.join()
+        for m in modules:
+            m.join()
 
     while True:
         cmd = float(

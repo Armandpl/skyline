@@ -16,20 +16,15 @@ from racecar_inference.proto.protocol_pb2 import SpeedCommand
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 
-    b = Broker()
-    b.start()
+    modules = []
+    modules.append(Broker())
+    modules.append(PidModule("configs/pid.yaml"))
+    modules.append(SpeedSensorModule("configs/speed_sensor.yaml"))
+    modules.append(CarModule("configs/car.yaml"))
+    modules.append(ControlModule("configs/control.yaml"))
 
-    pid_module = PidModule("configs/pid.yaml")
-    pid_module.start()
-
-    speed_sensor_module = SpeedSensorModule("configs/speed_sensor.yaml")
-    speed_sensor_module.start()
-
-    car_module = CarModule("configs/car.yaml")
-    car_module.start()
-
-    control_module = ControlModule("configs/control.yaml")
-    control_module.start()
+    for m in modules:
+        m.start()
 
     # setup zmq to be able to send commands to the bus
     ctx = zmq.Context()
@@ -39,7 +34,7 @@ if __name__ == "__main__":
     broker_ctrl = ctx.socket(zmq.PUB)
     broker_ctrl.bind(BROKER_CTRL_ADDR)
     broker_ctrl.setsockopt(
-        zmq.LINGER, 0
+        zmq.LINGER, 0 # allow terminating even if we have messages in the send queue
     )  # just in case but we shouldn't have > 1 message in the send queue at any time
 
     def quit_bus():
@@ -55,14 +50,15 @@ if __name__ == "__main__":
         ctx.term()
 
         # wait for processes to join
-        b.join()
-        speed_sensor_module.join()
-        pid_module.join()
+        for m in modules:
+            m.join()
 
     while True:
         try:
+            # float('a') will crash so make sure we don't crash the control module
+            # if we press a key by mistake
             cmd = float(input("what command to send (0: quit, 1: reload"))
-        except:
+        except: 
             cmd = -1
 
         if cmd == 0:
