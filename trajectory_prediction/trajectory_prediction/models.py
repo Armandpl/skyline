@@ -5,24 +5,25 @@ from torchvision import transforms
 
 
 class TransferNet(nn.Module):
-    def __init__(self, out_size: int = 1, freeze_base: bool = True):
+    def __init__(self, out_size: int = 1, out_scale: float = 1, freeze_base: bool = True):
         super().__init__()
+        self.out_scale = out_scale
         # Load the pre-trained ResNet18 model
-        self.weights = models.ResNet18_Weights.DEFAULT
-        self.resnet18 = models.resnet18(weights=self.weights)
+        weights = models.ResNet18_Weights.DEFAULT
+        resnet18 = models.resnet18(weights=weights)
 
         if freeze_base:
-            for param in self.resnet18.parameters():
+            for param in resnet18.parameters():
                 param.requires_grad = False
 
-        # Replace the last fully connected layer to match the number of classes
-        num_features = self.resnet18.fc.in_features
-        self.resnet18.fc = nn.Linear(num_features, out_size)
+        # replace the last fully connected layer
+        num_features = resnet18.fc.in_features
+        resnet18.fc = nn.Linear(num_features, out_size)
+        self.model = nn.Sequential(resnet18, nn.Tanh())
 
     def forward(self, x):
-        # Pass the input through the ResNet18 layers
-        x = self.resnet18(x)
-        x = torch.tanh(x) * 2.5  # allows predicting points up to 2.5m away
+        x = self.model(x) * self.out_scale  # allows predicting up to out_scale meters aways
+        # might be smarter to scale the labels instead idk
         return x
 
     def get_transforms(self):
