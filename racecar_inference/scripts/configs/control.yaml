@@ -1,6 +1,6 @@
 sub_topics: []
-steering_gain: 0.9 # different from car steering gain, this one is applied before
-lookup: 0 # 0 to 14
-fixed_speed: 3 # m/s
+steering_gain: 1.0 # different from car steering gain, this one is applied before
+lookup: 1 # 0 to 14
+fixed_speed: 4.1 # m/s
 camera_framerate: 30
 model_path: "./models/sim_steering_4ms.pth"
