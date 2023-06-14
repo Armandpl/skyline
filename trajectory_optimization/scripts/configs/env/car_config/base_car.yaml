@@ -16,9 +16,10 @@ model:
   # wheel_w: 0.025 not used?
 
 # additionnal params
-max_steer: 20 # max steer in deg, measured on the car with a level
+max_steer: 22.3 # max steer in deg, measured on the car with a level
 min_speed: 0.85 # no less else integrating state is slow
-max_speed: 5.5 # 7 # max speed in m/s, computed from battery voltage, motor kv and gear ratio
+# 9? # max speed in m/s, computed from battery voltage, motor kv and gear ratio
+max_speed: 7.5 # kv rating * battery voltage / final gear ratio * wheel diam / 60
 body_w: 0.19 # car width in meters
 max_steering_rate: 130 # deg/s, measured by recording vid and steering left to right
-max_accel: 25 # m/s^2, measured about ~28 by strapping my phone to the car
+max_accel: 28 # m/s^2, measured about ~28 by strapping my phone to the car

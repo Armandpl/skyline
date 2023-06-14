@@ -7,6 +7,8 @@ defaults:
 max_steps: 2_000_000
 use_sde: True
 gamma: 0.98
+ent_coef: "auto"
+learning_starts: 100
 
 # model
 agent_artifact: null # "agent:v1"

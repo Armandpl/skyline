@@ -4,9 +4,6 @@ defaults:
   - override /env: base_env
 
 # use this to override specific params here
-# maybe not the best practice though?
-# maybe having a fixed_speed_env.yaml config would be better
-# and then in those experiment file we just pick different modules?
 env:
   max_wheels_out: 0
   fixed_speed: 4

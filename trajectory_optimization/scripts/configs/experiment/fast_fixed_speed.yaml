@@ -4,21 +4,19 @@ defaults:
   - override /env: base_env
 
 # use this to override specific params here
-# maybe not the best practice though?
-# maybe having a fixed_speed_env.yaml config would be better
-# and then in those experiment file we just pick different modules?
 env:
   max_wheels_out: 0
-  fixed_speed: 5
+  fixed_speed: 6
   track_obstacles: null
   car_config:
+    body_w: 0.21
     max_steer: 22.3
-    model:
-      mu_s: 10 # put high number at random
-      mu_k: 10
+
 wrappers:
   history:
     use_continuity_cost: True
 
 max_steps: 500_000
 agent_artifact: "agent:v30"
+learning_starts: 100
+ent_coef: "auto"
