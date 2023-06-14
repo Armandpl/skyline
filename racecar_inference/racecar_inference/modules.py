@@ -27,15 +27,16 @@ from racecar_inference.proto.messages import (
     message_class_to_int_topic,
 )
 from racecar_inference.proto.protocol_pb2 import (
+    FilteredSpeed,
     SpeedCommand,
     SpeedReading,
-    FilteredSpeed,
     SteeringCommand,
     ThrottleCommand,
 )
 
 
-# TODO set HWM
+# TODO set HWM?
+# or rather print warning if module starts to choke? if the queue contains too many messages?
 class BaseModule(multiprocessing.Process):
     def __init__(self, config_path: Optional[Union[Path, str]] = None):
         super().__init__()
@@ -74,10 +75,7 @@ class BaseModule(multiprocessing.Process):
             for key in prev_conf.keys() & new_conf.keys():
                 if prev_conf[key] != new_conf[key]:
                     changed_keys.append(key)
-                    self.log(
-                        "info",
-                        f"{key}: {prev_conf[key]} -> {new_conf[key]}"
-                    )
+                    self.log("info", f"{key}: {prev_conf[key]} -> {new_conf[key]}")
         else:
             changed_keys = self.cfg.keys()
 
@@ -139,18 +137,7 @@ class BaseModule(multiprocessing.Process):
         no block option so that modules that don't need to read from the bus
         can still listen for reload/quit messages
         """
-        topic, message = None, None
-        try:
-            if noblock:
-                topic, serialized_message = self.sub_socket.recv(
-                    flags=zmq.NOBLOCK
-                )
-            else:
-                topic, serialized_message = self.sub_socket.recv()
-        except zmq.Again:
-            pass
-
-        message = None
+        combined_message = None
         try:
             if noblock:
                 combined_message = self.sub_socket.recv(flags=zmq.NOBLOCK)
@@ -160,7 +147,8 @@ class BaseModule(multiprocessing.Process):
             pass
 
         if combined_message:
-            topic = self.decode_topic(combined_message[0])  # Get the first byte
+            topic_as_bytes = combined_message[:1]  # Get the first byte as bytes
+            topic = self.decode_topic(topic_as_bytes)
 
             # handle special commands
             if topic == 1:
@@ -173,7 +161,9 @@ class BaseModule(multiprocessing.Process):
                 message = message_type()
                 message.ParseFromString(serialized_message)
 
-        return message
+                return message
+
+        return None
 
     def subscribe(self, topic: int):
         try:
@@ -265,7 +255,7 @@ class PidModule(BaseModule):
                 Ki=self.cfg.i,
                 Kd=self.cfg.d,
                 setpoint=0.0,
-                sample_time=None, # compute new value each time we call the pid
+                sample_time=None,  # compute new value each time we call the pid
                 output_limits=(self.cfg.min_throttle, self.cfg.max_throttle),
             )
 
@@ -281,7 +271,7 @@ class PidModule(BaseModule):
                 # update pid command
                 target_speed = message.desired_speed
                 self.pid_controller.setpoint = target_speed
-            elif isinstance(message, SpeedReading):
+            elif isinstance(message, FilteredSpeed):
                 throttle = self.pid_controller(message.speed)
                 self.publish(ThrottleCommand(throttle=throttle))
 
@@ -298,8 +288,10 @@ class SpeedFilterModule(BaseModule):
                 if self.ema is None:
                     self.ema = message.speed
                 else:
-                    self.ema = self.cfg.alpha * message.speed + (1 - self.cfg.alpha) * self.ema
-                
+                    self.ema = (
+                        self.cfg.alpha * message.speed + (1 - self.cfg.alpha) * self.ema
+                    )
+
                 self.publish(FilteredSpeed(speed=self.ema))
 
 
@@ -309,7 +301,7 @@ class CarModule(BaseModule):
 
     def handle_quit(self):
         super().handle_quit()
-        del self.car 
+        del self.car
 
     def reload(self):
         changed_keys = super().reload()
@@ -335,8 +327,9 @@ class CarModule(BaseModule):
 class ControlModule(BaseModule):
     def init(self):
         self.camera = None
+        self.model = None
 
-        # only do .cuda() in this process else things hang 
+        # only do .cuda() in this process else things hang
         # there seems to be a weird interaction between torch and processes
         self.mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
         self.std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
@@ -344,7 +337,7 @@ class ControlModule(BaseModule):
         self.log("info", "init done")
 
     def handle_quit(self):
-        super.handle_quit()
+        super().handle_quit()
         if self.camera is not None:
             self.camera.cap.release()
 
@@ -392,6 +385,9 @@ class ControlModule(BaseModule):
             # pause cam while we load model
             if self.camera is not None:
                 self.camera.running = False
+
+            if self.model is not None:
+                del self.model
 
             model = self.load_model(self.cfg.model_path)
             self.model = model
