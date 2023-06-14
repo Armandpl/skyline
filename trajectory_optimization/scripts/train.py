@@ -55,6 +55,8 @@ def main(cfg: DictConfig):
         tensorboard_log=f"runs/{run.id}",
         use_sde=cfg.use_sde,  # make sense since we're simulating a robot
         gamma=cfg.gamma,  # if we discount future rewards too much the car doesn't care about crashing in the future
+        learning_starts=cfg.learning_starts,
+        ent_coef=cfg.ent_coef,
     )
 
     if cfg.agent_artifact is not None:
