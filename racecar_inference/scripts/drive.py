@@ -9,6 +9,7 @@ from racecar_inference.modules import (
     CarModule,
     ControlModule,
     PidModule,
+    SpeedFilterModule,
     SpeedSensorModule,
 )
 from racecar_inference.proto.protocol_pb2 import SpeedCommand
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     modules.append(Broker())
     modules.append(PidModule("configs/pid.yaml"))
     modules.append(SpeedSensorModule("configs/speed_sensor.yaml"))
+    modules.append(SpeedFilterModule("configs/speed_filter.yaml"))
     modules.append(CarModule("configs/car.yaml"))
     modules.append(ControlModule("configs/control.yaml"))
 
@@ -34,7 +36,7 @@ if __name__ == "__main__":
     broker_ctrl = ctx.socket(zmq.PUB)
     broker_ctrl.bind(BROKER_CTRL_ADDR)
     broker_ctrl.setsockopt(
-        zmq.LINGER, 0 # allow terminating even if we have messages in the send queue
+        zmq.LINGER, 0  # allow terminating even if we have messages in the send queue
     )  # just in case but we shouldn't have > 1 message in the send queue at any time
 
     def quit_bus():
@@ -58,7 +60,7 @@ if __name__ == "__main__":
             # float('a') will crash so make sure we don't crash the control module
             # if we press a key by mistake
             cmd = float(input("what command to send (0: quit, 1: reload"))
-        except: 
+        except:
             cmd = -1
 
         if cmd == 0:
