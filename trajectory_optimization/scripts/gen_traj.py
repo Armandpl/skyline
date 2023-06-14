@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     run = wandb.init(project="skyline", job_type="gen_traj")
     model, env = load_model_and_instantiate_env(
-        artifact_alias="agent:v17",
+        artifact_alias="agent:v38",
         time_limit=TRAJ_LEN,
         max_wheels_out=4,  # render_mode="human"
     )
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             # by fetching config that produced the agent
             # ultimately rn we want to train a nn to predict this value so -1, 1 will do
             # this script is a lil messy and a bit specific but eh
-            -1,  # no speed command bc fixed speed for now
+            action[1],
             False,
         ]
         current_traj.append(traj_step)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     trajectories = np.array(trajectories)
     # Reshape the 3D trajectories (n_traj, n_steps, traj_step_len) array to a 2D array (n_traj*n_step, traj_step_len)
     trajectories = trajectories.reshape(-1, trajectories.shape[-1])
-    np.savetxt("../data/fixed_speed_rl_trajectories.txt", trajectories)
+    np.savetxt("../data/longi_rl_trajectories.txt", trajectories)
 
     # TODO save to wandb artifacts
     run.finish()
