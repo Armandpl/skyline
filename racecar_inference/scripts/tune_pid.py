@@ -5,7 +5,12 @@ import zmq
 
 from racecar_inference import BUS_SUB_ADDR
 from racecar_inference.broker import BROKER_CTRL_ADDR, Broker
-from racecar_inference.modules import CarModule, PidModule, SpeedSensorModule
+from racecar_inference.modules import (
+    CarModule,
+    PidModule,
+    SpeedFilterModule,
+    SpeedSensorModule,
+)
 from racecar_inference.proto.protocol_pb2 import SpeedCommand
 
 if __name__ == "__main__":
@@ -16,6 +21,7 @@ if __name__ == "__main__":
     modules.append(PidModule("configs/pid.yaml"))
     modules.append(SpeedSensorModule("configs/speed_sensor.yaml"))
     modules.append(CarModule("configs/car.yaml"))
+    modules.append(SpeedFilterModule("configs/speed_filter.yaml"))
 
     for m in modules:
         m.start()
@@ -58,12 +64,10 @@ if __name__ == "__main__":
         elif cmd == 1:
             pub_socket.send((1).to_bytes(1, "big"))
         elif (
-            cmd > 1 and cmd < 4
+            cmd > 1 and cmd < 6
         ):  # make sure we don't send a launch command and send the car to mars
             msg = SpeedCommand(desired_speed=cmd)
             cmd_byte = 3
-            pub_socket.send(
-                (cmd_byte).to_bytes(1, "big") + msg.SerializeToString()
-            )
+            pub_socket.send((cmd_byte).to_bytes(1, "big") + msg.SerializeToString())
 
     logging.info("all done")
