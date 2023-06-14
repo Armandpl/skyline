@@ -29,10 +29,13 @@ def main(fpath):
         print("bus OK")
 
         while True:
-            topic, serialized_message = sub_socket.recv_multipart()
+            combined_message = sub_socket.recv()
+
+            topic = combined_message[:1]
             topic = int.from_bytes(topic, "big")
 
             if topic != 0 and topic != 1:
+                serialized_message = combined_message[1:]
                 message_type = int_topic_to_message_class[topic]
                 message = message_type()
                 message.ParseFromString(serialized_message)
