@@ -1,9 +1,9 @@
 from racecar_inference.proto.protocol_pb2 import (
+    FilteredSpeed,
     SpeedCommand,
     SpeedReading,
     SteeringCommand,
     ThrottleCommand,
-    FilteredSpeed,
 )
 
 # map message types to int values to send as a single byte on the bus
