@@ -30,6 +30,7 @@ def main(agent_artifact):
 
         if terminated:
             if "lap_time" in info.keys():
+                print(f"LAP TIME: {info['lap_time']}")
                 break
             else:
                 obs, _ = env.reset()
