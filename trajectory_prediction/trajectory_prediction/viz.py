@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import torch
-from kornia.geometry.camera.perspective import project_points
 from matplotlib import pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
@@ -14,6 +12,7 @@ from trajectory_prediction.camera import (
     CROP_W,
     SIM_H,
     SIM_W,
+    D,
 )
 
 # device/mesh : x->forward, y-> right, z->down
@@ -22,30 +21,10 @@ device_frame_from_view_frame = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0,
 view_frame_from_device_frame = device_frame_from_view_frame.T
 
 
-def transform_points(points, offset, rotation):
-    """Transform the points from one frame of reference to another.
-
-    Args:
-        points (Tensor): the points to be transformed, with shape (n, 3).
-        offset (tuple): the translation vector.
-        rotation (tuple): the rotation angles in degrees.
-
-    Returns:
-        Tensor: the transformed points, with the same shape as the input points.
-    """
-    # Create the transformation matrix
-    offset = torch.tensor(offset).float()
-    rotation = R.from_euler("xyz", rotation, degrees=True).as_matrix()
-    transform = torch.from_numpy(rotation).float()
-
-    # Apply the transformation
-    transformed_points = torch.mm(points - offset, transform.T)
-
-    return transformed_points
-
-
 # plot trajectory on the images
-cam_offset = (0, -0.164, 0.105)  # right, down, forward in meter from center of mass. x is forward
+
+# right, down, forward in meter from center of mass. x is forward
+cam_offset = (0, 0.164, -0.105)  # TODO actually offset of the points since we use opencv tvec
 cam_rotation = (10.4, 0, 0)  # pitch, yaw, roll in deg
 FOCAL_MM = 0.87  # mm
 SENSOR_WIDTH = 3.691  # mm
@@ -64,21 +43,21 @@ def plot_traj(image, traj, color=(0, 0, 255)):
 
     traj_3d = np.pad(traj, (0, 1))  # add z = 0
     traj_3d = np.einsum("jk,ik->ij", view_frame_from_device_frame, traj_3d)
-    traj_3d = torch.from_numpy(traj_3d).float()  # to use kornia
-
-    # Transform the points to the camera's frame
-    traj_cam = transform_points(traj_3d, cam_offset, cam_rotation)
 
     # Compute the camera matrix (assuming square pixels and no skew)
-    camera_matrix = torch.tensor(
+    camera_matrix = np.array(
         [[F_x, 0, SIM_W * CENTER_X], [0, F_y, SIM_H * CENTER_Y], [0, 0, 1]]
-    )
+    )  # use F computed from sensor size as opposed to from calibration to have the right scale
 
     # Project the points onto the (uncropped) image plane
-    proj_points = project_points(traj_cam, camera_matrix)
-
-    # Distort points w/ D
-    # TODO
+    r = R.from_euler("xyz", cam_rotation, degrees=True)
+    rvec = r.as_rotvec().astype(np.float32)
+    tvec = np.array(cam_offset).reshape(1, 3).astype(np.float32)
+    traj_3d = traj_3d.reshape(-1, 1, 3).astype(np.float32)  # (N, 1, 3)
+    proj_points, _ = cv2.fisheye.projectPoints(
+        objectPoints=traj_3d, rvec=rvec, tvec=tvec, K=camera_matrix, D=D
+    )
+    proj_points = proj_points.reshape(-1, 2)
 
     # crop the projected points
     proj_points[:, 0] -= CROP_LEFT
@@ -92,14 +71,14 @@ def plot_traj(image, traj, color=(0, 0, 255)):
     proj_points[:, 1] *= resize_scale_y
 
     # only keep points inside the frame
-    valid_x = torch.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= w)
-    valid_y = torch.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= h)
-    valid_points = torch.logical_and(valid_x, valid_y)
+    valid_x = np.logical_and(proj_points[:, 0] >= 0, proj_points[:, 0] <= w)
+    valid_y = np.logical_and(proj_points[:, 1] >= 0, proj_points[:, 1] <= h)
+    valid_points = np.logical_and(valid_x, valid_y)
     proj_points = proj_points[valid_points]
 
     # plot points on the image
     for point in proj_points:
-        x, y = int(point[0].item()), int(point[1].item())
+        x, y = int(point[0]), int(point[1])
         cv2.circle(image, (x, y), radius=2, color=color, thickness=-1)
 
 
