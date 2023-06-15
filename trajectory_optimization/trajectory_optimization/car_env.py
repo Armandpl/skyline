@@ -31,6 +31,7 @@ class CarRacing(gym.Env):
         car_config: DictConfig,
         track="tracks/vivatech_2023.dxf",
         track_obstacles="tracks/vivatech_2023_obstacles.dxf",
+        obstacle_lidar: bool = False,
         render_mode: Optional[str] = "rgb_array",
         nb_rays: int = 13,
         max_lidar_distance: float = 15,  # max lidar distance, in m
@@ -48,6 +49,7 @@ class CarRacing(gym.Env):
         self.fixed_speed = fixed_speed
         self.max_wheels_out = max_wheels_out
         self.max_lidar_distance = max_lidar_distance
+        self.obstacles_lidar = obstacle_lidar
 
         self.metadata["render_fps"] = fps
 
@@ -68,7 +70,9 @@ class CarRacing(gym.Env):
 
         # add a lidar for obstacles if there obstacles on the track
         # nb_rays + 1 if no obstacles, nb_rays * 2 + 1 if obstacles
-        total_nb_rays = nb_rays * (1 + 1 * (len(self.track.obstacles) > 0))
+        total_nb_rays = nb_rays * (
+            1 + 1 * (len(self.track.obstacles) > 0 and self.obstacles_lidar)
+        )
         low_obs = np.array([*[0] * total_nb_rays, car_config.min_speed])
         high_obs = np.array([*[max_lidar_distance] * total_nb_rays, car_config.max_speed])
         self.observation_space = spaces.Box(
@@ -111,7 +115,7 @@ class CarRacing(gym.Env):
             self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
         )
 
-        if len(self.track.obstacles) > 0:
+        if len(self.track.obstacles) > 0 and self.obstacles_lidar:
             self.obstacles_lidar = self.track.get_distances_to_obstacles(
                 self.car.pos_x, self.car.pos_y, self.car.yaw, self.rays
             )
@@ -252,7 +256,7 @@ class CarRacing(gym.Env):
             # Draw lines with pygame
             pygame.draw.lines(self.surf, (255, 0, 0), False, points, 2)
 
-        if len(self.track.obstacles) > 0:
+        if len(self.track.obstacles) > 0 and self.obstacles_lidar:
             # show obstacle ray when they hit obstacle else show normal ray
             filtered_obstacle_lidar = {
                 k: v for k, v in self.obstacles_lidar.items() if v != np.inf

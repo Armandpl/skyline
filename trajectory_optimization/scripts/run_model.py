@@ -18,6 +18,8 @@ def main(agent_artifact):
         render_mode="human",
         max_wheels_out=4,
         track="tracks/vivatech_2023.dxf",
+        track_obstacles="tracks/vivatech_2023_obstacles_2.dxf",
+        obstacle_lidar=False,
         random_init=False,
     )
 
