@@ -59,7 +59,7 @@ class LongiNet(nn.Module):
 
     def forward(self, image, speed):
         features = self.resnet18(image)
-        out = self.fc(torch.concat((features, speed), axis=1))
+        out = self.fc(torch.concat((features, speed), dim=1))
         return torch.tanh(out) * self.out_scale
 
     def get_transforms(self):
