@@ -1,0 +1,10 @@
+# @package _global_
+
+defaults:
+  - override /model: r18_longi
+
+dataset:
+  train:
+    root_dir: "../../trajectory_optimization/data/longi_max8_100k"
+model_artifact_name: "model:v15" # edited from model:v8 to match the longi network
+epochs: 5

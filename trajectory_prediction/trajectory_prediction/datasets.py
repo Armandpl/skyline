@@ -101,7 +101,13 @@ class TrajectoryDataset(Dataset):
 
         # get the steering
         steering = trajectory_data[:, 4].reshape(-1, 1)
-        trajectory = np.column_stack((rotated_positions, steering))
+        throttle = trajectory_data[:, 5].reshape(-1, 1)
+        trajectory = np.column_stack((rotated_positions, steering, throttle))
+
+        MAX_SPEED = 8
+        MIN_SPEED = 2.5
+        rescaled_speed = 2 * ((trajectory_data[0, 3] - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) - 1
+        rescaled_speed = np.atleast_1d(rescaled_speed)
 
         # TODO return steering and throttle as different keys
         # do the hstack in the neural net instead?
@@ -109,9 +115,7 @@ class TrajectoryDataset(Dataset):
         return {
             "image": image,
             "trajectory": trajectory.flatten().astype(np.float32),  # (N*2)
-            "speed": trajectory_data[0, 3].astype(
-                np.float32
-            ),  # between 0 and 7, so its fine if not normalized?
+            "speed": rescaled_speed.astype(np.float32),
         }
 
 

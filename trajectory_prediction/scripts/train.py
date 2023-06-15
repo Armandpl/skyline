@@ -132,8 +132,8 @@ def main(cfg: DictConfig):
     # to make sure everything is working
     logging.info("Sanity check on val")
     evaluate(val_dl, "test", sanity_check=True)
-    logging.info("Sanity check viz")
-    viz(viz_dl, model)
+    logging.info("Sanity check viz on test")
+    viz(test_dl, model, key="test")
 
     # train
     try:
@@ -171,9 +171,10 @@ def main(cfg: DictConfig):
 def step(batch, model, criterion):
     # get data
     x, y = batch["image"], batch["trajectory"]
+    speed = batch["speed"]
 
     # forward
-    y_hat = model(x)
+    y_hat = model(x, speed)
     loss = criterion(y_hat, y)
 
     return loss, y, y_hat
@@ -188,11 +189,19 @@ def viz(dl, model, key="val"):
         for idx, batch in enumerate(dl):
             # forward
             x = batch["image"]
+
             if key != "test":
                 y = batch["trajectory"]
                 gt_traj.append(y.cpu().numpy())
 
-            y_hat = model(x)
+                speed = batch["speed"]
+            else:
+                # dummy speed for test ds bc we didn't collect speed
+                # TODO would be nice to record the real speed
+                speed = torch.ones((x.size(0), 1)) * 3
+                speed = speed.to(x.device)
+
+            y_hat = model(x, speed)
 
             # TODO this is ugly can we fix it?
             pred_traj.append(y_hat.cpu().numpy())
@@ -210,9 +219,9 @@ def viz(dl, model, key="val"):
 
     if key != "test":
         gt_traj = np.concatenate(gt_traj, axis=0).reshape(
-            images.shape[0], -1, 3
+            images.shape[0], -1, 4
         )  # (images, nb points traj, xy)
-    pred_traj = np.concatenate(pred_traj, axis=0).reshape(images.shape[0], -1, 3)
+    pred_traj = np.concatenate(pred_traj, axis=0).reshape(images.shape[0], -1, 4)
 
     for idx in range(images.shape[0]):
         if key != "test":  # only plot gt when we have it
