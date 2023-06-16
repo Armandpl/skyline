@@ -133,7 +133,8 @@ def main(cfg: DictConfig):
     logging.info("Sanity check on val")
     evaluate(val_dl, "test", sanity_check=True)
     logging.info("Sanity check viz on test")
-    viz(test_dl, model, key="test")
+    # viz(test_dl, model, key="test")
+    viz(viz_dl, model)
 
     # train
     try:
