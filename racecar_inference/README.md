@@ -5,6 +5,13 @@
 - list serial devices `ls /dev/serial/by-path/` or `dmesg | grep tty`
 - serial permissions quickfix: `sudo chmod 666 /dev/ttyACM0`
 - sort impots and lint (manually bc pre-commit doesn't work out of the box on pytho3.6): `black my-package && isort --profile black my-package`
+- connect to wifi in range `sudo nmcli device wifi connect [SSID] password [PASSWORD]`
+- add wifi out of range:
+```
+nmcli con add type wifi ifname wlan0 con-name viva ssid Robocars
+nmcli con modify viva wifi-sec.key-mgmt wpa-psk wifi-sec.psk YOUR_WIFI_PASSWORD
+nmcli con modify viva connection.autoconnect yes
+```
 
 
 # Dependencies
