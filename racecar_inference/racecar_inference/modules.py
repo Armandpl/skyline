@@ -373,7 +373,12 @@ class ControlModule(BaseModule):
         output = self.model(image).squeeze().cpu().numpy()
         traj = output.reshape(-1, 3).astype(np.float32)
 
-        steering = float(traj[self.cfg.lookup, -1]) * self.cfg.steering_gain
+        steering = float(traj[self.cfg.lookup, -1])
+
+        if abs(steering) > self.cfg.gain_thresh:
+            steering = steering * self.cfg.high_gain
+        else:
+            steering = steering * self.cfg.low_gain
 
         self.publish(SteeringCommand(steering=steering))
         self.publish(SpeedCommand(desired_speed=self.cfg.fixed_speed))
@@ -416,3 +421,50 @@ class ControlModule(BaseModule):
         while self.running:
             # listen for quit/reload messages
             self.receive()
+
+
+class LongiControlModule(ControlModule):
+    def init(self):
+        super().init()
+        self.speed = None
+
+    def handle_image_callback(self, change):
+        new_image = change["new"]
+        image = self.preprocess(new_image)
+
+        # shouldn't happen but y'know just in case
+        if self.speed is None:
+            speed = torch.Tensor([[3]]).cuda().half()
+            self.log("warning", "self.speed is None")
+        else:
+            # remap real speed between -1 and 1 which is what nn expecct
+            speed = (self.speed - self.cfg.min_speed) / (
+                self.cfg.max_speed - self.cfg.min_speed
+            )
+            speed = speed * 2 - 1
+            speed = torch.Tensor([[speed]]).cuda().half()
+
+        output = self.model(image, speed).squeeze().cpu().numpy()
+        traj = output.reshape(-1, 4).astype(np.float32)
+
+        steering = float(traj[self.cfg.lookup_steer, 2]) * self.cfg.steering_gain
+
+        # TODO move all the remaping to a function
+        speed_command = float(traj[self.cfg.lookup_speed, 3])  # -1, 1 range
+        speed_command = (speed_command + 1) * (
+            self.cfg.max_speed - self.cfg.min_speed
+        ) / 2 + self.cfg.min_speed  # Remap to [MIN, MAX]
+        speed_command = max(
+            min(speed_command, self.cfg.clip_speed), self.cfg.min_speed
+        )  # clip speed
+
+        self.publish(SteeringCommand(steering=steering))
+        self.publish(SpeedCommand(desired_speed=speed_command))
+
+    def loop(self):
+        while self.running:
+            # listen for quit/reload messages
+            message = self.receive()
+
+            if isinstance(message, FilteredSpeed):
+                self.speed = message.speed
