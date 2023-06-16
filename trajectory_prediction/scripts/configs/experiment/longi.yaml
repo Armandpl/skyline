@@ -5,6 +5,6 @@ defaults:
 
 dataset:
   train:
-    root_dir: "../../trajectory_optimization/data/longi_max8_100k"
-model_artifact_name: "model:v15" # edited from model:v8 to match the longi network
-epochs: 5
+    root_dir: "../../trajectory_optimization/data/longi_max5_400k"
+model_artifact_name: null # edited from model:v8 to match the longi network
+epochs: 20

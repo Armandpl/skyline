@@ -104,8 +104,8 @@ class TrajectoryDataset(Dataset):
         throttle = trajectory_data[:, 5].reshape(-1, 1)
         trajectory = np.column_stack((rotated_positions, steering, throttle))
 
-        MAX_SPEED = 8
-        MIN_SPEED = 2.5
+        MAX_SPEED = 5.6
+        MIN_SPEED = 3.0
         rescaled_speed = 2 * ((trajectory_data[0, 3] - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) - 1
         rescaled_speed = np.atleast_1d(rescaled_speed)
 

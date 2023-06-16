@@ -198,7 +198,8 @@ def viz(dl, model, key="val"):
             else:
                 # dummy speed for test ds bc we didn't collect speed
                 # TODO would be nice to record the real speed
-                speed = torch.ones((x.size(0), 1)) * 3
+                # speed is between -1, 1 so lets just use zero
+                speed = torch.zeros((x.size(0), 1))
                 speed = speed.to(x.device)
 
             y_hat = model(x, speed)
