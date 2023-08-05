@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  # use this to override using files
+  - override /env: longitudinal
+
+# use this to override specific params here
+env:
+  max_wheels_out: 0
+  track_obstacles: null

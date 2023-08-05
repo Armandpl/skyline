@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - override /env: longitudinal
+
+env:
+  max_wheels_out: 4 # allow all wheels out as long as we don't touch obstacles
+  track_obstacles: "tracks/vivatech_2023_obstacles_2.dxf"
+  car_config:
+    min_speed: 3.0 # make sure we don't slow down
+    max_speed: 5.6 # ~30 km/h
+    max_accel: 28
+    body_w: 0.21
+
+wrappers:
+  history:
+    use_continuity_cost: True
+
+max_steps: 500_000
+agent_artifact: "agent:v38"

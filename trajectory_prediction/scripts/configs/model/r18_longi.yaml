@@ -1,0 +1,4 @@
+_target_: trajectory_prediction.models.LongiNet
+out_size: 60
+out_scale: 3.2
+freeze_base: False

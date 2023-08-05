@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  # use this to override using files
+  - override /env: base_env
+
+# use this to override specific params here
+env:
+  max_wheels_out: 0
+  fixed_speed: 4
+  track_obstacles: null
+
+max_steps: 250_000
+agent_artifact: "agent:v17"

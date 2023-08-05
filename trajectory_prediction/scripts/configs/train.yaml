@@ -1,0 +1,35 @@
+defaults:
+  - _self_
+  - model: r18.yaml
+  - dataset: frames_trajectories.yaml
+  - augmentations: augs.yaml
+
+val_pct: 0.02
+
+# train
+lr: 5e-4
+batch_size: 64
+epochs: 20
+val_freq: 1 # number of time we eval per epoch
+loss:
+  _target_: torch.nn.L1Loss
+
+# debug
+# null = don't overfit
+overfit_batches: null
+
+# data loading
+num_workers: 8
+pin_memory: True
+
+# model to load
+model_artifact_name: null # "model:v0"
+
+# reproducibility
+seed: 1234
+cudnn_deterministic: False
+
+# logging
+wandb:
+  project: "skyline"
+  job_type: "train_trajectory"

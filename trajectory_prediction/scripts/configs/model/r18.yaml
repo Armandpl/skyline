@@ -1,3 +1,4 @@
 _target_: trajectory_prediction.models.TransferNet
-out_size: 1
+out_size: 45
+out_scale: 1.5
 freeze_base: False

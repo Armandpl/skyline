@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  # use this to override using files
+  - override /env: base_env
+
+# use this to override specific params here
+env:
+  max_wheels_out: 0
+  fixed_speed: 6
+  track_obstacles: null
+  car_config:
+    body_w: 0.21
+    max_steer: 22.3
+
+wrappers:
+  history:
+    use_continuity_cost: True
+
+max_steps: 500_000
+agent_artifact: "agent:v30"
+learning_starts: 100
+ent_coef: "auto"

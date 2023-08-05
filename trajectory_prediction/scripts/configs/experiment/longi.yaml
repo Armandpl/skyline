@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /model: r18_longi
+model:
+  out_scale: 2.5
+  out_size: 60 # 4 * N: x, y, steer, speed
+dataset:
+  train:
+    root_dir: "../../trajectory_optimization/data/longi_max5_400k"
+    N: 15
+model_artifact_name: null # edited from model:v8 to match the longi network
+epochs: 15

@@ -1,6 +1,6 @@
 # ignore other files in notebook dir
 **/notebooks/**
-!**/notebooks/*.ipynb
+!**/notebooks/**/*.ipynb
 
 # wandb stuff
 **/artifacts/**
@@ -10,7 +10,6 @@
 **/data/**
 # Un-ignore any .dxf file under any data directory in the whole project
 !**/data/**/*.dxf
-!**/notebooks/*.ipynb
 
 # wandb
 **/wandb/**
@@ -145,9 +144,9 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
+# env/ bc we use env/ for rl env config and not for venv
 venv/
-ENV/
+# ENV/
 env.bak/
 venv.bak/
 

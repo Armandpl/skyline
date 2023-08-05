@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  # use this to override using files
+  - override /env: base_env
+
+# use this to override specific params here
+env:
+  max_wheels_out: 4
+  fixed_speed: 2
+  track_obstacles: "tracks/vivatech_2023_obstacles_2.dxf"

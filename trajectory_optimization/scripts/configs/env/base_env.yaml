@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+  - car_config: base_car.yaml
+_target_: trajectory_optimization.car_env.CarRacing
+track: "tracks/vivatech_2023.dxf"
+track_obstacles: "tracks/vivatech_2023_obstacles.dxf"
+render_mode: "rgb_array"
+nb_rays: 13
+max_lidar_distance: 15
+random_init: True
+fps: 30
+fixed_speed: 3
+max_wheels_out: 2

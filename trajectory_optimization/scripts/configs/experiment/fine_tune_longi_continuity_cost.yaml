@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - fine_tune_longitudinal # extend this experiment
+
+agent_artifact: "agent:v23"
+env:
+  car_config:
+    max_speed: 4.5
+
+wrappers:
+  history:
+    use_continuity_cost: True

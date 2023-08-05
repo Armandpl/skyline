@@ -8,6 +8,9 @@ Code based on MATLAB simulation code written by Emily Yunan, located
 at https://github.com/jsford/FFAST.
 """
 
+from dataclasses import dataclass
+from typing import Optional
+
 import numpy as np
 import yaml
 from scipy.integrate import solve_ivp
@@ -15,165 +18,25 @@ from scipy.integrate import solve_ivp
 from trajectory_optimization import data_dir
 
 
-class Car:
-    def __init__(
-        self,
-        model_type="linear",
-        mu_s=1.37,
-        mu_k=1.96,
-        initial_state=None,
-        model_path=data_dir / "models/fazer_mk2.yaml",
-    ):
-        self.model_type = model_type
-        self.model_path = model_path
-
-        # init state can't be strictly zeros else computation errors
-        self.initial_state = initial_state if initial_state is not None else np.array([1e-6] * 6)
-        self.mu_s = mu_s  # TODO load that from yaml? what is it?
-        self.mu_k = mu_k
-        self.load_parameters()
-
-    def load_parameters(self):
-        # TODO use hydra instead of loading and indexing the yaml
-        with open(self.model_path) as f:
-            params = yaml.safe_load(f)
-        if self.model_type == "linear":
-            self.model = LinearTireModel(params, self.mu_s, self.mu_k)
-        elif self.model_type == "brush":
-            self.model = BrushTireModel(params, self.mu_s, self.mu_k)
-        else:
-            raise ValueError("Invalid model type")
-
-        self.max_steer = np.deg2rad(params["max_steer"])
-        self.max_speed = params["max_speed"]
-        self.min_speed = 0.85  # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
-        # TODO maybe there is a cleaner way to fix this? understand why integrating can be slow sometimes? division by zero or smth?
-        self.max_accel = params["max_accel"]
-        if params["max_steering_rate"] is not None:
-            self.max_steering_rate = np.deg2rad(params["max_steering_rate"])
-        else:
-            self.max_steering_rate = None
-        self.steering = 0
-        self.width = params["body_w"]
-        self.length = self.model.L
-        self.state = self.initial_state
-
-    def denormalize_action(self, U):
-        # TODO maybe don't clip and rescale since sb3 already does it?
-        # not sure where sb3 does it though might as well do it myself
-        U = np.copy(U)
-        U[0] = np.clip(U[0], -1, 1) * self.max_steer  # steering command
-        U[1] = np.clip(U[1], -1, 1)
-        U[1] = (U[1] + 1) / 2  # rescale to [0, 1]
-        U[1] = (
-            U[1] * (self.max_speed - self.min_speed)
-            + self.min_speed  # rescale to [max, min] speed
-        )  # speed command
-        return U
-
-    def step(self, U, dt):
-        """U is the action coming from the gym env, U[0] is delta, U[1] is speed they both are
-        normalized between -1 and 1."""
-        U = self.denormalize_action(U)
-
-        if self.max_accel is not None:
-            speed_diff = U[1] - self.speed  # desired speed diff
-            # assume we can speed up or slow down with the same limits
-            speed_diff = np.clip(speed_diff, -self.max_accel * dt, self.max_accel * dt)
-            U[1] = self.speed + speed_diff
-
-        if self.max_steering_rate is not None:
-            steering_diff = U[0] - self.steering
-            steering_diff = np.clip(
-                steering_diff, -self.max_steering_rate * dt, self.max_steering_rate * dt
-            )
-
-            self.steering += steering_diff
-            U[0] = self.steering
-
-        self.state = self.model.state_transition(self.state, U, dt)
-
-    @property
-    def vertices(self):
-        # Calculate the car's rectangle vertices based on its position and orientation
-        half_width = self.width / 2
-        L_f, L_r = self.model.L_f, self.model.L_r
-
-        # Define the car's rectangle vertices in the local coordinate system
-        local_vertices = [
-            (-L_r, -half_width),
-            (-L_r, half_width),
-            (L_f, half_width),
-            (L_f, -half_width),
-        ]
-
-        # Rotate and translate the vertices to the global coordinate system
-        cos_yaw = np.cos(self.yaw)
-        sin_yaw = np.sin(self.yaw)
-
-        # scale from real world meters to pixels
-        pos_x = self.pos_x
-        pos_y = self.pos_y
-
-        global_vertices = [
-            (pos_x + cos_yaw * vx - sin_yaw * vy, pos_y + sin_yaw * vx + cos_yaw * vy)
-            for vx, vy in local_vertices
-        ]
-        return global_vertices
-
-    @property
-    def pos_x(self):
-        return self.state[0]
-
-    @property
-    def pos_y(self):
-        return self.state[1]
-
-    @property
-    def yaw(self):
-        return self.state[2]
-
-    @property
-    def v_x(self):
-        return self.state[3]
-
-    @property
-    def v_y(self):
-        return self.state[4]
-
-    @property
-    def speed(self):
-        return np.sqrt(np.power(self.v_x, 2) + np.power(self.v_y, 2))
-
-    @property
-    def yaw_rate(self):
-        return self.state[5]
-
-
+@dataclass
 class DynamicBicycleModel:
     """Vehicle modeled as a three degrees of freedom dynamic bicycle model."""
 
-    def __init__(self, params, mu_s=1.37, mu_k=1.96):
-        """Initialize model parameters from dictionary format to instance variables."""
-        # Vehicle parameters
-        self.m = params["m"]  # Mass
-        self.L_f = params["L_f"]  # CoG to front axle length
-        self.L_r = params["L_r"]  # CoG to rear axle length
-        self.L = self.L_f + self.L_r  # Front to rear axle length
-        self.load_f = params["load_f"]  # Load on front axle
-        self.load_r = params["load_r"]  # Load on rear axle
+    m: float  # Mass
+    L_f: float  # CoG to front axle length
+    L_r: float  # CoG to rear axle length
+    load_f: float  # Load on front axle
+    load_r: float  # Load on rear axle
+    C_x: float  # Longitudinal stiffness
+    C_alpha: float  # Cornering stiffness
+    I_z: float  # Moment of inertia
+    mu_s: float = 1.37  # static friction coef (depends on floor?)
+    mu_k: float = 1.96  # kinetic friction coef
+    kappa: float = None  # slip ratio
 
-        # Wheel parameters
-        self.C_x = params["C_x"]  # Longitudinal stiffness
-        self.C_alpha = params["C_alpha"]  # Cornering stiffness
-        self.I_z = params["I_z"]  # Moment of inertia
-
-        # Static and kinetic coefficients of friction
-        self.mu_s = mu_s
-        self.mu_k = mu_k
-
-        # Slip ratio
-        self.kappa = None
+    @property
+    def L(self):
+        return self.L_f + self.L_r
 
     def state_transition(self, X, U, dt):
         """Update state after some timestep."""
@@ -255,11 +118,139 @@ class DynamicBicycleModel:
         return val
 
 
+class Car:
+    """wrapper around bicycle model to:
+
+    - load params
+    - implement steering rate and max accel
+    - have getters and setters for system state
+    """
+
+    def __init__(
+        self,
+        model: DynamicBicycleModel,
+        max_steer: float,
+        max_speed: float,
+        max_accel: float,
+        body_w: float,
+        min_speed: float = 0.85,
+        initial_state=None,
+        max_steering_rate=None,
+        fixed_speed: Optional[float] = None,  # only control the car steering
+    ):
+        self.model = model
+        self.fixed_speed = fixed_speed
+
+        # init state can't be strictly zeros else computation errors
+        self.initial_state = initial_state if initial_state is not None else np.array([1e-6] * 6)
+
+        self.max_steer = np.deg2rad(max_steer)
+        self.max_speed = max_speed
+        self.min_speed = min_speed  # m/s, min speed else integrating the accel is too slow. TODO this depends on the model param (and probably on the compute as well)
+        # TODO maybe there is a cleaner way to fix this? understand why integrating can be slow sometimes? division by zero or smth?
+        self.max_accel = max_accel
+        if max_steering_rate is not None:
+            self.max_steering_rate = np.deg2rad(max_steering_rate)
+        else:
+            self.max_steering_rate = None
+
+        self.steering = 0
+        self.width = body_w
+        self.length = self.model.L
+        self.state = self.initial_state
+
+    def step(self, U, dt):
+        """U[0] is delta in rad, U[1] is speed in m/s In the case of fixed speed, there is no speed
+        command, only U[0] steering."""
+        U = np.copy(
+            U
+        )  # else we modify the action sent by the RL algo and probably mess up its training data
+
+        if self.max_accel is not None and self.fixed_speed is None:
+            speed_diff = U[1] - self.speed  # desired speed diff
+            # assume we can speed up or slow down with the same limits
+            speed_diff = np.clip(speed_diff, -self.max_accel * dt, self.max_accel * dt)
+            U[1] = self.speed + speed_diff
+
+        if self.fixed_speed is not None:
+            U = np.array([U[0], 0], dtype=np.float32)
+            U[1] = self.fixed_speed
+
+        if self.max_steering_rate is not None:
+            steering_diff = U[0] - self.steering
+            steering_diff = np.clip(
+                steering_diff, -self.max_steering_rate * dt, self.max_steering_rate * dt
+            )
+
+            self.steering += steering_diff
+            U[0] = self.steering
+
+        self.state = self.model.state_transition(self.state, U, dt)
+
+    @property
+    def vertices(self):
+        """Calculate the car's rectangle vertices based on its position, orientation and body
+        size."""
+
+        half_width = self.width / 2
+        L_f, L_r = self.model.L_f, self.model.L_r
+
+        # Define the car's rectangle vertices in the local coordinate system
+        local_vertices = [
+            (-L_r, -half_width),
+            (-L_r, half_width),
+            (L_f, half_width),
+            (L_f, -half_width),
+        ]
+
+        # Rotate and translate the vertices to the global coordinate system
+        cos_yaw = np.cos(self.yaw)
+        sin_yaw = np.sin(self.yaw)
+
+        # scale from real world meters to pixels
+        pos_x = self.pos_x
+        pos_y = self.pos_y
+
+        global_vertices = [
+            (pos_x + cos_yaw * vx - sin_yaw * vy, pos_y + sin_yaw * vx + cos_yaw * vy)
+            for vx, vy in local_vertices
+        ]
+        return global_vertices
+
+    @property
+    def pos_x(self):
+        return self.state[0]
+
+    @property
+    def pos_y(self):
+        return self.state[1]
+
+    @property
+    def yaw(self):
+        return self.state[2]
+
+    @property
+    def v_x(self):
+        return self.state[3]
+
+    @property
+    def v_y(self):
+        return self.state[4]
+
+    @property
+    def speed(self):
+        return np.sqrt(np.power(self.v_x, 2) + np.power(self.v_y, 2))
+
+    def set_speed(self, v_x):
+        self.state[3] = v_x
+
+    @property
+    def yaw_rate(self):
+        return self.state[5]
+
+
 class LinearTireModel(DynamicBicycleModel):
     """Use a dynamic bicycle model with a linear tire model for tire dynamics."""
-
-    def __init__(self, params, mu_s, mu_k):
-        super().__init__(params, mu_s, mu_k)
 
     def _tire_dynamics_front(self, alpha):
         F_yf = -self.C_alpha * alpha
@@ -274,9 +265,6 @@ class LinearTireModel(DynamicBicycleModel):
 
 class BrushTireModel(DynamicBicycleModel):
     """Use a dynamic bicycle model with a brush tire model for tire dynamics."""
-
-    def __init__(self, params, mu_s, mu_k):
-        super().__init__(params, mu_s, mu_k)
 
     def _tire_dynamics_front(self, alpha):
         # alpha > pi/2 is invalid because of the use of tan(). Since

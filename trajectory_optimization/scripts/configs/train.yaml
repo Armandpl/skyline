@@ -1,0 +1,23 @@
+defaults:
+  - _self_
+  - env: base_env.yaml
+  - wrappers: base_wrappers.yaml
+
+# train
+max_steps: 2_000_000
+use_sde: True
+gamma: 0.98
+ent_coef: "auto"
+learning_starts: 100
+
+# model
+agent_artifact: null # "agent:v1"
+
+# reproducibility
+# seed: 1234
+# cudnn_deterministic: False
+
+# logging
+wandb_project: "skyline"
+video_freq: 10 # log every max_steps//video_freq steps
+video_length: 500
