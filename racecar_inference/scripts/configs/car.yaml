@@ -1,0 +1,5 @@
+sub_topics: ["ThrottleCommand", "SteeringCommand"]
+throttle_gain: 1
+# conservative bc im afraid of damaging the servo and steering mechanism
+steering_gain: 1.0  # in reality can be set to one
+steering_offset: -0.2

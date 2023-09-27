@@ -1,0 +1,4 @@
+sub_topics: []
+ser_device: "/dev/ttyACM0"
+ser_baudrate: 9600
+ser_timeout: null # makes ser.readline blocking

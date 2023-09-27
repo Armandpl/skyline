@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package car;
+
+// SpeedReading message represents the speed reading of the car from a sensor.
+message SpeedReading {
+    // Speed of the car, a float value between 0 and ~7 (m/s).
+    float speed = 1;
+}
+
+message FilteredSpeed{
+    float speed = 1;
+}
+
+// SpeedCommand message represents a command to set the car's speed.
+message SpeedCommand {
+    // Desired speed for the car to go, a float value.
+    float desired_speed = 1;
+}
+
+// ThrottleCommand message sends the command to the car, a float value between -1 and 1.
+message ThrottleCommand {
+    float throttle = 1;
+}
+
+// SteeringCommand message sends the command to the car, a float value between -1 and 1.
+message SteeringCommand {
+    float steering = 1;
+}

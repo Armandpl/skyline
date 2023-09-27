@@ -1,0 +1,7 @@
+sub_topics: ["FilteredSpeed", "SpeedCommand"]
+p: 1.2
+i: 0.85
+d: 0.01
+max_throttle: 0.8
+min_throttle: -1
+# fallback_throttle: 0.25
