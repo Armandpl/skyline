@@ -13,8 +13,8 @@ def split_list(input_list, sublist_length):
 
 
 if __name__ == "__main__":
-    INPUT_DIR = Path("../../trajectory_optimization/data/render_100k")
-    OUTPUT_DIR = Path("../../trajectory_optimization/data/render_100k")
+    INPUT_DIR = Path("../../trajectory_optimization/data/render_100k/images")
+    OUTPUT_DIR = Path("../../trajectory_optimization/data/render_100k/processed_images")
     EXT = ".jpg"
     THREADS = 6
 
