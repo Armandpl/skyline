@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import cv2
+import np
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
@@ -12,15 +13,26 @@ def split_list(input_list, sublist_length):
 
 
 if __name__ == "__main__":
-    INPUT_DIR = Path("../../trajectory_optimization/data/fixed_speed_50k/images")
-    OUTPUT_DIR = Path("../../trajectory_optimization/data/fixed_speed_50k/processed_images")
+    INPUT_DIR = Path("../../trajectory_optimization/data/render_100k")
+    OUTPUT_DIR = Path("../../trajectory_optimization/data/render_100k")
     EXT = ".jpg"
-    THREADS = 8
+    THREADS = 6
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     # end crop: top left coords, wh
-    x, y, w, h = 250, 169, 375, 250
+    #x, y, w, h = 250, 169, 375, 250
+
+    # comma_hack_4
+    x, y, w, h = 405, 247, 1065, 669
+
+    K = np.array([[ 5.97615131e+02, -4.50346295e-01,  9.43058151e+02],
+                      [ 0.00000000e+00,  5.97320118e+02,  5.66164841e+02],
+                      [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+    D = np.array([-0.03800249,
+                    0.04716124,
+                    -0.04492046,
+                    0.01374281])
 
     scaled_K = K / 4  # 3264x2464 -> 816x616
     scaled_K[2][2] = 1
