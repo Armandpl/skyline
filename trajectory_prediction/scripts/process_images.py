@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import cv2
-import np
+import numpy as np
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
