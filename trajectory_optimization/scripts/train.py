@@ -35,8 +35,11 @@ def main(cfg: DictConfig):
         job_type="train_agent",
     )
 
-    env = hydra.utils.instantiate(cfg.env, _recursive_=False)
-    vec_env = DummyVecEnv([lambda: wrap_env(env, cfg.wrappers)])
+    def make_env():
+        # instantiate a fresh env per copy so the n_envs share no state
+        return wrap_env(hydra.utils.instantiate(cfg.env, _recursive_=False), cfg.wrappers)
+
+    vec_env = DummyVecEnv([make_env for _ in range(cfg.n_envs)])
 
     # Record the video starting at the first step
     video_freq_steps = cfg.max_steps // cfg.video_freq
@@ -57,6 +60,7 @@ def main(cfg: DictConfig):
         gamma=cfg.gamma,  # if we discount future rewards too much the car doesn't care about crashing in the future
         learning_starts=cfg.learning_starts,
         ent_coef=cfg.ent_coef,
+        device=cfg.device,
     )
 
     if cfg.agent_artifact is not None:

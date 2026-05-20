@@ -4,11 +4,13 @@ defaults:
   - wrappers: base_wrappers.yaml
 
 # train
-max_steps: 2_000_000
+max_steps: 1_000_000
 use_sde: True
 gamma: 0.98
 ent_coef: "auto"
 learning_starts: 100
+device: cpu # the MlpPolicy is tiny, cpu is faster than gpu here (no transfer overhead)
+n_envs: 1 # parallel envs; >1 speeds up wall-clock but lowers the update-to-data ratio
 
 # model
 agent_artifact: null # "agent:v1"
