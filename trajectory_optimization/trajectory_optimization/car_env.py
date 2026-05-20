@@ -6,7 +6,7 @@ import numpy as np
 import pygame
 from gymnasium import spaces
 from omegaconf import DictConfig, OmegaConf
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 from trajectory_optimization import data_dir
 from trajectory_optimization.track import Track
@@ -30,7 +30,7 @@ class CarRacing(gym.Env):
         self,
         car_config: DictConfig,
         track="tracks/vivatech_2023.dxf",
-        track_obstacles="tracks/vivatech_2023_obstacles.dxf",
+        track_obstacles="tracks/vivatech_2023_obstacles_2.dxf",
         obstacle_lidar: bool = False,
         render_mode: Optional[str] = "rgb_array",
         nb_rays: int = 13,
@@ -103,12 +103,10 @@ class CarRacing(gym.Env):
         return False
 
     def _is_crashed(self) -> bool:
-        """check if any of the car vertices is inside an obstacle."""
-        for x, y in self.car.vertices:
-            for obstacle in self.track.obstacles:
-                if obstacle.contains(Point(x, y)):
-                    return True
-        return False
+        """check if the car's body overlaps any obstacle."""
+        if not self.track.obstacles:
+            return False
+        return self.track.obstacles_union.intersects(Polygon(self.car.vertices))
 
     def _get_obs(self):
         self.lidar = self.track.get_distances_to_sides(
@@ -319,11 +317,11 @@ if __name__ == "__main__":
         global quit, restart
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
+                if event.key == pygame.K_a:
                     a[0] = -1.0
-                if event.key == pygame.K_RIGHT:
+                if event.key == pygame.K_d:
                     a[0] = +1.0
-                if event.key == pygame.K_UP:
+                if event.key == pygame.K_w:
                     a[1] = +1.0
                 if event.key == pygame.K_RETURN:
                     restart = True
@@ -331,11 +329,11 @@ if __name__ == "__main__":
                     quit = True
 
             if event.type == pygame.KEYUP:
-                if event.key == pygame.K_LEFT:
+                if event.key == pygame.K_a:
                     a[0] = 0.0
-                if event.key == pygame.K_RIGHT:
+                if event.key == pygame.K_d:
                     a[0] = 0.0
-                if event.key == pygame.K_UP:
+                if event.key == pygame.K_w:
                     a[1] = -1.0
 
             if event.type == pygame.QUIT:

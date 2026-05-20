@@ -4,8 +4,15 @@ from typing import List
 import ezdxf
 import numpy as np
 import shapely.geometry as geom
+from shapely.ops import unary_union
+from shapely.prepared import prep
 
 from trajectory_optimization import data_dir
+
+# dxf tracks are sampled at 0.5 deg/segment (~2700 pts/ring), which makes the
+# lidar ray intersections needlessly slow. Simplifying to 1cm keeps the geometry
+# within real-lidar noise (mean error <0.5cm) while cutting ray cost ~3x.
+SIMPLIFY_TOLERANCE = 0.01
 
 
 class Track:
@@ -16,12 +23,12 @@ class Track:
     ):
         self._parse_track(filepath)
 
+        self.obstacles = []
+        self.obstacles_union = None
         if obstacles_filepath is not None:
             self._parse_obstacles(
                 obstacles_filepath
             )  # coodinates system needs to line up w/ the track
-        else:
-            self.obstacles = []
 
     def _parse_dxf(self, filepath):
         doc = ezdxf.readfile(filepath)
@@ -47,11 +54,16 @@ class Track:
 
         # inner < center < outer
         self.inner, self.center, self.outer = lines
+        # simplify the boundaries used for lidar/inside checks (not the centerline,
+        # which drives the progress reward and is left untouched)
+        self.inner = self.inner.simplify(SIMPLIFY_TOLERANCE)
+        self.outer = self.outer.simplify(SIMPLIFY_TOLERANCE)
         self.asphalt = geom.Polygon(shell=self.outer, holes=[self.inner])
 
     def _parse_obstacles(self, filepath):
-        self.obstacles = self._parse_dxf(filepath)
-        self.obstacles = [geom.Polygon(linear_ring) for linear_ring in self.obstacles]
+        self.obstacles = [geom.Polygon(ring) for ring in self._parse_dxf(filepath)]
+        # prepared union for fast "does the car overlap any obstacle" queries
+        self.obstacles_union = prep(unary_union(self.obstacles))
 
     def is_inside(self, x, y):
         """given x, y coords, check if they are inside the track (between inner and outer)"""
