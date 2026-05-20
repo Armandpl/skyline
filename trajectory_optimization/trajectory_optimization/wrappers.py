@@ -51,10 +51,11 @@ class HistoryWrapper(gym.Wrapper):
 
         return obs, reward, terminated, truncated, info
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
         self.history = self._make_history()
         self.history.pop(0)
-        obs = np.concatenate([self.env.reset()[0], np.zeros_like(self.env.action_space.low)])
+        obs = self.env.reset(seed=seed, options=options)[0]
+        obs = np.concatenate([obs, np.zeros_like(self.env.action_space.low)])
         self.history.append(obs)
         return np.array(self.history).flatten(), {}
 
@@ -107,8 +108,8 @@ class RescaleWrapper(gym.Wrapper):
         )
         return obs, reward, terminated, truncated, info
 
-    def reset(self):
-        obs, info = self.env.reset()
+    def reset(self, *, seed=None, options=None):
+        obs, info = self.env.reset(seed=seed, options=options)
         obs = self.rescale_to_minus_plus_one(
             obs, self.env.observation_space.low, self.env.observation_space.high
         )
