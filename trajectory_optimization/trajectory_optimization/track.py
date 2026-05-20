@@ -25,6 +25,7 @@ class Track:
 
         self.obstacles = []
         self.obstacles_union = None
+        self._obstacle_segments = _to_segments([])
         if obstacles_filepath is not None:
             self._parse_obstacles(
                 obstacles_filepath
@@ -59,11 +60,14 @@ class Track:
         self.inner = self.inner.simplify(SIMPLIFY_TOLERANCE)
         self.outer = self.outer.simplify(SIMPLIFY_TOLERANCE)
         self.asphalt = geom.Polygon(shell=self.outer, holes=[self.inner])
+        # precompute the boundary segments once for the vectorized lidar raycast
+        self._side_segments = _to_segments([self.inner, self.outer])
 
     def _parse_obstacles(self, filepath):
         self.obstacles = [geom.Polygon(ring) for ring in self._parse_dxf(filepath)]
         # prepared union for fast "does the car overlap any obstacle" queries
         self.obstacles_union = prep(unary_union(self.obstacles))
+        self._obstacle_segments = _to_segments([o.exterior for o in self.obstacles])
 
     def is_inside(self, x, y):
         """given x, y coords, check if they are inside the track (between inner and outer)"""
@@ -75,38 +79,55 @@ class Track:
         point = geom.Point(x, y)
         return self.center.project(point)
 
-    def _get_distances_to_objects(self, x, y, yaw, objects, angles):
-        """given the car coordinates and orientation raymarch to objects (at different agnles) and
-        return the distance kind of like lidar."""
-        origin = geom.Point(x, y)
-        lidar = {}
-        for a in angles:
-            # Calculate end point of the ray
-            a = np.radians(a)
-            theta = a + yaw
-            end_x = x + 1000 * np.cos(theta)
-            end_y = y + 1000 * np.sin(theta)
-            line = geom.LineString([(x, y), (end_x, end_y)])
+    def _raycast(self, x, y, yaw, angles, segments):
+        """raymarch from the car (at each ray angle) to a set of segments and return the distance
+        to the nearest forward hit, kind of like a lidar.
 
-            # Calculate intersections with objects (track lines or obstacles)
-            intersections = [line.intersection(o) for o in objects]
+        Vectorized over (rays x segments): for each ray o + t*d and segment p1 + u*e we solve for
+        (t, u) in closed form, keep hits with t >= 0 and u in [0, 1], and take the min t per ray.
+        Returns a dict keyed by ray angle in radians (relative to the car), matching the renderer.
+        """
+        seg_start, edge = segments
+        angles_rad = np.radians(np.asarray(angles, dtype=float))
 
-            # Get distances to the intersections and store the minimum distance
-            distances = [
-                origin.distance(intersection) if intersection else np.inf
-                for intersection in intersections
-            ]
-            lidar[a] = min(distances)
+        if seg_start.shape[0] == 0:
+            return {a: np.inf for a in angles_rad}
 
-        return lidar
+        theta = angles_rad + yaw
+        dx, dy = np.cos(theta), np.sin(theta)  # ray directions (unit), shape (R,)
+        bx = seg_start[:, 0] - x  # (p1 - origin), shape (S,)
+        by = seg_start[:, 1] - y
+        ex, ey = edge[:, 0], edge[:, 1]  # segment vectors, shape (S,)
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            denom = dx[:, None] * ey[None, :] - dy[:, None] * ex[None, :]  # d x e, (R, S)
+            t = (bx * ey - by * ex)[None, :] / denom  # (b x e) / denom -> distance along ray
+            u = (bx[None, :] * dy[:, None] - by[None, :] * dx[:, None]) / denom  # (b x d) / denom
+
+        hit = (denom != 0) & (t >= 0) & (u >= 0) & (u <= 1)
+        t = np.where(hit, t, np.inf)
+        distances = t.min(axis=1)  # (R,)
+        return {a: d for a, d in zip(angles_rad, distances)}
 
     def get_distances_to_sides(self, x, y, yaw, angles=[-90, -45, 0, 45, 90]):
-        objects = [self.inner, self.outer]
-
-        return self._get_distances_to_objects(x, y, yaw, objects, angles)
+        return self._raycast(x, y, yaw, angles, self._side_segments)
 
     def get_distances_to_obstacles(self, x, y, yaw, angles=[-90, -45, 0, 45, 90]):
-        return self._get_distances_to_objects(x, y, yaw, self.obstacles, angles)
+        return self._raycast(x, y, yaw, angles, self._obstacle_segments)
+
+
+def _to_segments(geoms):
+    """flatten shapely line geometries into (start_points, edge_vectors) arrays of shape (S, 2),
+    used by the vectorized lidar raycast."""
+    starts, edges = [], []
+    for g in geoms:
+        coords = np.asarray(g.coords)
+        starts.append(coords[:-1])
+        edges.append(coords[1:] - coords[:-1])
+    if not starts:
+        empty = np.empty((0, 2))
+        return empty, empty
+    return np.concatenate(starts), np.concatenate(edges)
 
 
 def convert_circle(
