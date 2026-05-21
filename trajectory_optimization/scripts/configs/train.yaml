@@ -16,7 +16,7 @@ n_envs: 1 # parallel envs; >1 speeds up wall-clock but lowers the update-to-data
 agent_artifact: null # "agent:v1"
 
 # reproducibility
-# seed: 1234
+seed: null
 # cudnn_deterministic: False
 
 # logging

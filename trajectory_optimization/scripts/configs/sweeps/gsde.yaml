@@ -1,0 +1,17 @@
+# gSDE x continuity-cost ablation
+program: train.py
+method: grid
+# pass params as hydra-style "key=value" overrides (no leading hyphens)
+command:
+  - uv
+  - run
+  - python
+  - ${program}
+  - ${args_no_hyphens}
+parameters:
+  seed:
+    values: [0, 1, 2, 3, 4]
+  use_sde:
+    values: [true, false]
+  wrappers.history.use_continuity_cost:
+    values: [true, false]
