@@ -32,7 +32,7 @@ class HistoryWrapper(gym.Wrapper):
         last_action = obs[-2][-1]
         continuity_cost = np.power((action - last_action), 2).sum()
 
-        return continuity_cost
+        return float(continuity_cost)
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
