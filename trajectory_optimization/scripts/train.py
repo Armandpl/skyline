@@ -20,6 +20,29 @@ class LapTimeCallback(BaseCallback):
         return True
 
 
+class VideoLogCallback(BaseCallback):
+    """Upload videos written by VecVideoRecorder to wandb.
+
+    SB3 now writes mp4s itself via moviepy, so wandb's monitor_gym hook (which patches
+    gymnasium's VideoRecorder) never fires. We watch the folder and log new clips ourselves.
+    A clip only lands on disk once write_videofile() has finished, so any mp4 we see is
+    complete and safe to upload. No explicit step is passed so it rides wandb's internal
+    counter and doesn't fight the tensorboard-synced step ordering.
+    """
+
+    def __init__(self, video_folder: str):
+        super().__init__()
+        self.video_folder = Path(video_folder)
+        self.logged: set[Path] = set()
+
+    def _on_step(self) -> bool:
+        for video in sorted(self.video_folder.glob("*.mp4")):
+            if video not in self.logged:
+                self.logged.add(video)
+                wandb.log({"video": wandb.Video(str(video))})
+        return True
+
+
 @hydra.main(version_base="1.3", config_path="configs", config_name="train")
 def main(cfg: DictConfig):
     print(cfg)
@@ -43,9 +66,10 @@ def main(cfg: DictConfig):
 
     # Record the video starting at the first step
     video_freq_steps = cfg.max_steps // cfg.video_freq
+    video_folder = f"runs/{run.id}/videos"
     vec_env = VecVideoRecorder(
         vec_env,
-        f"runs/{run.id}/videos",
+        video_folder,
         record_video_trigger=lambda x: x % video_freq_steps == 0,
         video_length=cfg.video_length,
     )
@@ -61,6 +85,7 @@ def main(cfg: DictConfig):
         learning_starts=cfg.learning_starts,
         ent_coef=cfg.ent_coef,
         device=cfg.device,
+        seed=cfg.seed,
     )
 
     if cfg.agent_artifact is not None:
@@ -71,7 +96,11 @@ def main(cfg: DictConfig):
 
     try:
         # Train the agent and display a progress bar
-        model.learn(total_timesteps=cfg.max_steps, progress_bar=True, callback=LapTimeCallback())
+        model.learn(
+            total_timesteps=cfg.max_steps,
+            progress_bar=True,
+            callback=[LapTimeCallback(), VideoLogCallback(video_folder)],
+        )
     except KeyboardInterrupt:
         pass
 
